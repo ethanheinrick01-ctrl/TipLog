@@ -6,10 +6,28 @@ import * as SecureStore from 'expo-secure-store';
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
+// Platform-aware storage adapter — expo-secure-store doesn't work on web
 const ExpoSecureStoreAdapter = {
-  getItem: (key: string) => SecureStore.getItemAsync(key),
-  setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
-  removeItem: (key: string) => SecureStore.deleteItemAsync(key),
+  getItem: (key: string) => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return Promise.resolve(window.localStorage.getItem(key));
+    }
+    return SecureStore.getItemAsync(key);
+  },
+  setItem: (key: string, value: string) => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(key, value);
+      return Promise.resolve();
+    }
+    return SecureStore.setItemAsync(key, value);
+  },
+  removeItem: (key: string) => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.removeItem(key);
+      return Promise.resolve();
+    }
+    return SecureStore.deleteItemAsync(key);
+  },
 };
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
