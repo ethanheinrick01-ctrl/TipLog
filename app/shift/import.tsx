@@ -22,13 +22,13 @@ import * as ImagePicker from 'expo-image-picker';
 import { Colors, Spacing, Radius, FontSize } from '../../constants/theme';
 import { defaultOcrAdapter, ToastReceiptData } from '../../lib/receiptImport';
 import { useShiftStore } from '../../store/shiftStore';
+import { useAuthStore } from '../../store/authStore';
 import { computeShift } from '../../lib/calculations';
-import { fmt } from '../../lib/calculations';
 
 export default function ImportShiftScreen() {
   const router = useRouter();
   const { saveShift } = useShiftStore();
-  const { user } = require('../../store/authStore').useAuthStore();
+  const { user } = useAuthStore();
 
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
