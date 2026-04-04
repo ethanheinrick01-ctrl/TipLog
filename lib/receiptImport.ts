@@ -31,22 +31,42 @@ export interface OcrAdapter {
 
 export class SupabaseOcrAdapter implements OcrAdapter {
   /**
-   * Sends all images at once to the GPT-4o edge function via direct REST fetch.
-   * Avoids supabase.functions.invoke to prevent auth refresh loops on web.
+   * Sends all images to the GPT-4o edge function via direct REST fetch.
+   * imageUris can be:
+   * - base64 strings directly (preferred — from expo-image-picker with base64:true)
+   * - file:// or content:// URIs (fetched and converted on native)
+   *
+   * Skips fetch entirely when already base64, avoiding web file:// CORS issues.
    */
   async recognizeImages(imageUris: string[]): Promise<ToastReceiptData> {
-    const projectRef = process.env.EXPO_PUBLIC_SUPABASE_URL?.replace('https://', '').replace('.supabase.co', '');
+    const projectRef =
+      process.env.EXPO_PUBLIC_SUPABASE_URL?.replace('https://', '').replace('.supabase.co', '') ?? '';
     const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
     const endpoint = `https://${projectRef}.supabase.co/functions/v1/ocr-receipt`;
 
-    // Fetch all images and convert to base64
+    // Normalise: if already raw base64 (no URI scheme), pass through.
+    // Otherwise resolve file:// / content:// via fetch on native.
     const base64Images = await Promise.all(
       imageUris.map(async (uri) => {
+        // Not a URI — assume raw base64 from picker
+        if (!uri.startsWith('file://') && !uri.startsWith('content://') && !uri.startsWith('ph://')) {
+          return uri;
+        }
+        // Native URI — fetch and convert
         const res = await fetch(uri);
         const blob = await res.blob();
-        const arrayBuffer = await blob.arrayBuffer();
-        return btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-      })
+        return new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const result = reader.result as string;
+            // Strip the data:image/...;base64, prefix if present
+            const base64 = result.includes(',') ? result.split(',')[1] : result;
+            resolve(base64);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      }),
     );
 
     try {
@@ -75,10 +95,6 @@ export class SupabaseOcrAdapter implements OcrAdapter {
 // ─── Mock adapter for development ──────────────────────────────────────────
 
 export class MockOcrAdapter implements OcrAdapter {
-  /**
-   * Returns a realistic Friday-night fixture so you can develop
-   * the import UI without hitting the live API.
-   */
   async recognizeImages(_imageUris: string[]): Promise<ToastReceiptData> {
     return {
       date: '2026-04-03',

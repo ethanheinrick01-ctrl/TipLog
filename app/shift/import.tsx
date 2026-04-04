@@ -48,9 +48,10 @@ export default function ImportShiftScreen() {
       allowsMultipleSelection: true,
       selectionLimit: 3,
       quality: 0.8,
+      base64: true, // return base64 directly so we can use it on web without fetch()
     });
     if (!res.canceled && res.assets.length > 0) {
-      setSelectedImages(res.assets.map((a) => a.uri));
+      setSelectedImages(res.assets.map((a) => a.base64 ?? a.uri));
       setResult(null);
       setError(null);
     }
@@ -64,9 +65,10 @@ export default function ImportShiftScreen() {
     }
     const res = await ImagePicker.launchCameraAsync({
       quality: 0.8,
+      base64: true,
     });
     if (!res.canceled && res.assets.length > 0) {
-      setSelectedImages([res.assets[0].uri]);
+      setSelectedImages([res.assets[0].base64 ?? res.assets[0].uri]);
       setResult(null);
       setError(null);
     }
