@@ -58,8 +58,17 @@ async function pullShifts(userId: string): Promise<void> {
   if (error || !data) return;
 
   for (const row of data) {
+    // Parse tipOutByCategory from Supabase JSONB (comes as object, not string)
+    let tipOutByCategory: Record<string, number> = {};
+    if (row.tipOutByCategory) {
+      tipOutByCategory = typeof row.tipOutByCategory === 'string'
+        ? JSON.parse(row.tipOutByCategory)
+        : row.tipOutByCategory;
+    }
+
     const shift: Shift = {
       ...row,
+      tipOutByCategory,
       expenses: row.expenses ?? [],
       synced: true,
     };

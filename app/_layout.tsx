@@ -7,11 +7,15 @@ import { supabase } from '../lib/supabase';
 import { initDB } from '../lib/db';
 import { useAuthStore } from '../store/authStore';
 import { useShiftStore } from '../store/shiftStore';
+import { syncAll } from '../lib/sync';
 import { Colors } from '../constants/theme';
 
 export default function RootLayout() {
   const { setSession, user } = useAuthStore();
-  const loadAll = useShiftStore((s) => s.loadAll);
+  const { loadAll, sync } = useShiftStore((s) => ({
+    loadAll: s.loadAll,
+    sync: s.sync,
+  }));
 
   useEffect(() => {
     initDB();
@@ -32,6 +36,7 @@ export default function RootLayout() {
   useEffect(() => {
     if (user?.id) {
       loadAll(user.id);
+      syncAll(user.id); // pull from Supabase on load
     }
   }, [user?.id]);
 
