@@ -30,6 +30,7 @@ export default function ImportShiftScreen() {
   const { saveShift } = useShiftStore();
   const { user } = useAuthStore();
 
+  const [mode, setMode] = useState<'cashout' | 'schedule'>('cashout');
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ToastReceiptData | null>(null);
@@ -117,9 +118,28 @@ export default function ImportShiftScreen() {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 
         {/* Header hint */}
+        {/* Mode toggle */}
+        <View style={styles.toggleRow}>
+          <TouchableOpacity
+            style={[styles.toggleBtn, mode === 'cashout' && styles.toggleBtnActive]}
+            onPress={() => { setMode('cashout'); setSelectedImages([]); setResult(null); setError(null); }}
+          >
+            <Text style={[styles.toggleBtnText, mode === 'cashout' && styles.toggleBtnTextActive]}>💰 Cashout</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.toggleBtn, mode === 'schedule' && styles.toggleBtnActive]}
+            onPress={() => { setMode('schedule'); setSelectedImages([]); setResult(null); setError(null); }}
+          >
+            <Text style={[styles.toggleBtnText, mode === 'schedule' && styles.toggleBtnTextActive]}>📅 Schedule</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Header hint */}
         <View style={styles.hint}>
           <Text style={styles.hintText}>
-            Photograph or select up to 3 Toast washout slips. GPT-4o will read all the numbers and pre-fill your shift.
+            {mode === 'cashout'
+              ? 'Photograph or select up to 3 Toast washout slips. GPT-4o will read all the numbers and pre-fill your shift.'
+              : 'Photograph or select your HotSchedules weekly view. GPT-4o will extract all shifts and pre-fill them.'}
           </Text>
         </View>
 
@@ -152,7 +172,7 @@ export default function ImportShiftScreen() {
             {loading ? (
               <ActivityIndicator color={Colors.bg} />
             ) : (
-              <Text style={styles.processBtnText}>Process Receipt</Text>
+              <Text style={styles.processBtnText}>{mode === 'cashout' ? 'Process Receipt' : 'Process Schedule'}</Text>
             )}
           </TouchableOpacity>
         )}
@@ -290,6 +310,19 @@ function buildShiftFromResult(r: ToastReceiptData) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
   content: { padding: Spacing.md },
+  toggleRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
+  toggleBtn: {
+    flex: 1,
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: Radius.md,
+    borderWidth: 1.5,
+    borderColor: Colors.accent,
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
+  toggleBtnActive: { backgroundColor: Colors.accent },
+  toggleBtnText: { fontWeight: '700', fontSize: FontSize.md, color: Colors.accent },
+  toggleBtnTextActive: { color: Colors.bg },
   hint: {
     backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
