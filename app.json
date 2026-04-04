@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "TipLog",
-    "slug": "tiplog",
+    "name": "Gratuitize Me",
+    "slug": "gratuitize-me",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.mikeanersons.tiplog",
+      "bundleIdentifier": "com.gratuitizeme.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -30,7 +30,7 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "scheme": "tiplog",
+    "scheme": "gratuitize-me",
     "plugins": [
       "expo-router",
       "expo-sqlite",

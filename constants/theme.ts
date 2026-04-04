@@ -1,3 +1,14 @@
+export const TipOutColors: Record<string, string> = {
+  oyster: '#FF6B6B',
+  bar: '#4ECDC4',
+  busser: '#FFE66D',
+  expo: '#95E1D3',
+  host: '#F38181',
+  foodRunner: '#AA96DA',
+  support: '#FCBAD3',
+  other: '#A0A0A0',
+};
+
 export const Colors = {
   // Backgrounds
   bg: '#0F0F0F',

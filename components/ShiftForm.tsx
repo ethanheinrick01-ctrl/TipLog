@@ -24,6 +24,29 @@ import { Shift, Expense } from '../lib/types';
 import { ExpenseManager } from './ExpenseManager';
 import { randomUUID } from 'expo-crypto';
 
+// ─── Tip-out categories & colors ──────────────────────────────────────────
+export const TIP_OUT_CATEGORIES = [
+  { key: 'oyster', label: 'Oyster' },
+  { key: 'bar', label: 'Bar' },
+  { key: 'busser', label: 'Busser' },
+  { key: 'expo', label: 'Expo' },
+  { key: 'host', label: 'Host' },
+  { key: 'foodRunner', label: 'Food Runner' },
+  { key: 'support', label: 'Support' },
+  { key: 'other', label: 'Other' },
+];
+
+export const TIP_OUT_COLORS: Record<string, string> = {
+  oyster: '#FF6B6B',
+  bar: '#4ECDC4',
+  busser: '#FFE66D',
+  expo: '#95E1D3',
+  host: '#F38181',
+  foodRunner: '#AA96DA',
+  support: '#FCBAD3',
+  other: '#AAAAAA',
+};
+
 interface Props {
   /** Pass existing shift to pre-fill for edit mode */
   existing?: Shift;
@@ -39,6 +62,17 @@ export function ShiftForm({ existing, initialDate }: Props) {
   const defaultJobId = existing?.jobId ?? jobs[0]?.id ?? '';
   const defaultJob = jobs.find((j) => j.id === defaultJobId);
 
+  // Load existing tip-out categories from the shift, or initialize all to 0
+  function initCategories(): Record<string, string> {
+    const init: Record<string, string> = {};
+    for (const cat of TIP_OUT_CATEGORIES) {
+      init[cat.key] = existing?.tipOutByCategory?.[cat.key]
+        ? String(existing.tipOutByCategory[cat.key])
+        : '';
+    }
+    return init;
+  }
+
   const [date, setDate] = useState(existing?.date ?? initialDate ?? format(new Date(), 'yyyy-MM-dd'));
   const [jobId, setJobId] = useState(defaultJobId);
   const [clockIn, setClockIn] = useState(existing?.clockIn ?? '17:00');
@@ -47,7 +81,7 @@ export function ShiftForm({ existing, initialDate }: Props) {
   const [tipsCredit, setTipsCredit] = useState(existing?.tipsCredit ? String(existing.tipsCredit) : '');
   const [sales, setSales] = useState(existing?.sales ? String(existing.sales) : '');
   const [covers, setCovers] = useState(existing?.covers ? String(existing.covers) : '');
-  const [tipOut, setTipOut] = useState(existing?.tipOut ? String(existing.tipOut) : '');
+  const [tipOutCategories, setTipOutCategories] = useState<Record<string, string>>(initCategories);
   const [tipIn, setTipIn] = useState(existing?.tipIn ? String(existing.tipIn) : '');
   const [wage, setWage] = useState(existing?.wage ? String(existing.wage) : (defaultJob?.defaultWage?.toString() ?? '2.13'));
   const [serviceCharge, setServiceCharge] = useState(existing?.serviceCharge ? String(existing.serviceCharge) : '');
@@ -57,12 +91,18 @@ export function ShiftForm({ existing, initialDate }: Props) {
 
   const shiftId = existing?.id ?? randomUUID();
 
+  // Build the tipOutByCategory object from state
+  const tipOutByCategory: Record<string, number> = {};
+  for (const cat of TIP_OUT_CATEGORIES) {
+    tipOutByCategory[cat.key] = parseFloat(tipOutCategories[cat.key]) || 0;
+  }
+
   const preview = computeShift({
     tipsCash: parseFloat(tipsCash) || 0,
     tipsCredit: parseFloat(tipsCredit) || 0,
     sales: parseFloat(sales) || 0,
     covers: parseInt(covers) || 0,
-    tipOut: parseFloat(tipOut) || 0,
+    tipOutByCategory,
     tipIn: parseFloat(tipIn) || 0,
     wage: parseFloat(wage) || 0,
     serviceCharge: parseFloat(serviceCharge) || 0,
@@ -70,6 +110,12 @@ export function ShiftForm({ existing, initialDate }: Props) {
     clockIn,
     clockOut,
   });
+
+  const totalTipOut = Object.values(tipOutByCategory).reduce((a, b) => a + b, 0);
+
+  function handleCategoryChange(key: string, value: string) {
+    setTipOutCategories((prev) => ({ ...prev, [key]: value }));
+  }
 
   function handleSave() {
     if (!user?.id) return;
@@ -88,7 +134,7 @@ export function ShiftForm({ existing, initialDate }: Props) {
       tipsCredit: parseFloat(tipsCredit) || 0,
       sales: parseFloat(sales) || 0,
       covers: parseInt(covers) || 0,
-      tipOut: parseFloat(tipOut) || 0,
+      tipOutByCategory,
       tipIn: parseFloat(tipIn) || 0,
       wage: parseFloat(wage) || 0,
       serviceCharge: parseFloat(serviceCharge) || 0,
@@ -164,10 +210,30 @@ export function ShiftForm({ existing, initialDate }: Props) {
           <Field label="Covers" value={covers} onChange={setCovers} numeric />
         </View>
 
-        {/* Tip flow */}
+        {/* Tip-Out Breakdown */}
+        <SLabel label="Tip-Out Breakdown" />
+        <View style={styles.tipOutGrid}>
+          {TIP_OUT_CATEGORIES.map((cat) => (
+            <View key={cat.key} style={styles.tipOutCell}>
+              <Field
+                label={cat.label}
+                value={tipOutCategories[cat.key]}
+                onChange={(v) => handleCategoryChange(cat.key, v)}
+                numeric
+                accent={TIP_OUT_COLORS[cat.key]}
+              />
+            </View>
+          ))}
+          {/* Total tip-out display */}
+          <View style={[styles.tipOutCell, styles.tipOutTotalCell]}>
+            <Text style={styles.tipOutTotalLabel}>Total Out</Text>
+            <Text style={styles.tipOutTotalValue}>{fmt(totalTipOut)}</Text>
+          </View>
+        </View>
+
+        {/* Tip In */}
         <SLabel label="Tip Flow" />
         <View style={styles.row3}>
-          <Field label="Tip Out" value={tipOut} onChange={setTipOut} numeric accent={Colors.error} />
           <Field label="Tip In" value={tipIn} onChange={setTipIn} numeric accent={Colors.success} />
         </View>
 
@@ -313,6 +379,39 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     borderWidth: 1,
     borderColor: Colors.border,
+  },
+  tipOutGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: Spacing.md,
+    gap: Spacing.sm,
+  },
+  tipOutCell: {
+    width: '30%',
+    minWidth: 90,
+  },
+  tipOutTotalCell: {
+    width: '30%',
+    minWidth: 90,
+    justifyContent: 'flex-end',
+    paddingBottom: 4,
+  },
+  tipOutTotalLabel: {
+    fontSize: FontSize.xs,
+    fontWeight: '700',
+    color: Colors.error,
+    marginBottom: 4,
+  },
+  tipOutTotalValue: {
+    fontSize: FontSize.md,
+    fontWeight: '700',
+    color: Colors.error,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.sm,
+    padding: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.error + '55',
+    overflow: 'hidden',
   },
   notesInput: {
     marginHorizontal: Spacing.md,

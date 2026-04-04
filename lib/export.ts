@@ -92,7 +92,7 @@ export async function exportShiftsToCSV(shifts: Shift[], jobs: Job[]): Promise<v
 
   await Sharing.shareAsync(fileUri, {
     mimeType: 'text/csv',
-    dialogTitle: 'Export TipLog Data',
+    dialogTitle: 'Export Gratuitize Me Data',
     UTI: 'public.comma-separated-values-text',
   });
 }

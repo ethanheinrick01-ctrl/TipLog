@@ -99,10 +99,25 @@ export default function ShiftDetailScreen() {
           <Row label="Sales / Cover" value={fmt(shift.salesPerCover)} />
         )}
 
-        {/* Tip flow */}
-        <SectionTitle label="Tip Flow" />
-        <Row label="Tip Out" value={fmt(shift.tipOut)} accent={Colors.error} />
+        {/* Tip-Out Breakdown */}
+        <SectionTitle label="Tip-Out Breakdown" />
+        {(() => {
+          const cats = shift.tipOutByCategory ?? {};
+          const entries = Object.entries(cats).filter(([, v]) => v > 0);
+          if (entries.length === 0) return <Row label="(none)" value="$0.00" />;
+          return entries.map(([key, val]) => {
+            const label = key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1');
+            return <Row key={key} label={label} value={fmt(val)} accent={Colors.error} />;
+          });
+        })()}
+        <Row label="Total Tip Out" value={fmt(shift.tipOut)} accent={Colors.error} bold />
+
+        {/* Tip In */}
+        <SectionTitle label="Tip In" />
         <Row label="Tip In" value={fmt(shift.tipIn)} accent={Colors.success} />
+
+        {/* Net Tips */}
+        <SectionTitle label="Net Tips" />
         <Row label="Net Tips" value={fmt(shift.netTips)} accent={Colors.accent} bold />
 
         {/* Hours & Wage */}

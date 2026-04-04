@@ -149,8 +149,21 @@ export function buildForecast(shifts: Shift[]): Forecast | null {
   };
 }
 
+// Default tip-out categories
+export const DEFAULT_TIP_OUT_CATEGORIES = [
+  'oyster',
+  'bar',
+  'busser',
+  'expo',
+  'host',
+  'foodRunner',
+  'support',
+];
+
 /**
  * Compute derived fields for a shift before saving.
+ * 
+ * Handles both new tipOutByCategory format and legacy tipOut for backward compatibility.
  */
 export function computeShift(raw: Partial<Shift>): Partial<Shift> {
   const cash = raw.tipsCash ?? 0;
@@ -163,9 +176,15 @@ export function computeShift(raw: Partial<Shift>): Partial<Shift> {
   const covers = raw.covers ?? 0;
   const salesPerCover = covers > 0 ? sales / covers : 0;
 
-  const tipOut = raw.tipOut ?? 0;
+  // Handle tipOutByCategory - compute total from categories or fall back to legacy tipOut
+  const tipOutByCategory = raw.tipOutByCategory ?? {};
+  const totalTipOut = Object.values(tipOutByCategory).reduce((a, b) => a + b, 0);
+  
+  // Backward compatibility: if tipOutByCategory is empty/invalid but tipOut exists, use that
+  const effectiveTipOut = totalTipOut > 0 ? totalTipOut : (raw.tipOut ?? 0);
+  
   const tipIn = raw.tipIn ?? 0;
-  const netTips = tipsTotal - tipOut + tipIn;
+  const netTips = tipsTotal - effectiveTipOut + tipIn;
 
   const wage = raw.wage ?? 0;
   const hours = computeHours(raw.clockIn, raw.clockOut);
@@ -174,9 +193,11 @@ export function computeShift(raw: Partial<Shift>): Partial<Shift> {
 
   return {
     ...raw,
+    tipOutByCategory,
     tipsTotal,
     tipPercent,
     salesPerCover,
+    tipOut: effectiveTipOut, // Keep for backward compatibility
     netTips,
     hours,
     grossEarnings,
@@ -227,7 +248,11 @@ export function summarizeShifts(shifts: Shift[]): PeriodSummary {
     s.hours += shift.hours;
     s.sales += shift.sales;
     s.covers += shift.covers;
-    s.tipOut += shift.tipOut;
+    // Sum tipOut from both legacy tipOut field and tipOutByCategory
+    const categoryTotal = shift.tipOutByCategory 
+      ? Object.values(shift.tipOutByCategory).reduce((a, b) => a + b, 0)
+      : 0;
+    s.tipOut += shift.tipOut + categoryTotal;
     s.tipIn += shift.tipIn;
     s.serviceCharge += shift.serviceCharge;
     s.mileage += shift.mileage;

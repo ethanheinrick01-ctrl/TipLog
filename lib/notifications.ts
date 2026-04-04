@@ -30,7 +30,7 @@ export async function scheduleShiftReminder(hourStr: string): Promise<void> {
     identifier: 'shift-reminder',
     content: {
       title: "Log your shift 💵",
-      body: "Don't forget to record today's tips in TipLog.",
+      body: "Don't forget to record today's tips in Gratuitize Me.",
       sound: true,
     },
     trigger: {

@@ -421,7 +421,7 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.version}>TipLog v1.0 · Mike Anderson's Seafood · Baton Rouge</Text>
+        <Text style={styles.version}>Gratuitize Me v1.0 · Mike Anderson's Seafood · Baton Rouge</Text>
         <View style={{ height: Spacing.xxl }} />
       </ScrollView>
     </SafeAreaView>

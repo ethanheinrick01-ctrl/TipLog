@@ -1,4 +1,4 @@
-# TipLog — Coworker Setup Guide
+# Gratuitize Me — Coworker Setup Guide
 
 Quick-start instructions for teammates to get TipLog running on their devices.
 
@@ -85,3 +85,15 @@ You'll need a **fresh install** (delete the app and re-download) when:
 ---
 
 _Last updated: 2026-04-04_
+
+---
+
+## Database Schema Updates (April 2024)
+
+If you have an existing database, you'll need to add the new tip-out categories column. Run this in your Supabase SQL editor:
+
+```sql
+ALTER TABLE public.shifts ADD COLUMN IF NOT EXISTS "tipOutByCategory" jsonb not null default '{}';
+```
+
+This enables category-specific tip-outs (oyster, bar, busser, expo, host, foodRunner, support).

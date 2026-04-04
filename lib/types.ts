@@ -40,8 +40,9 @@ export interface Shift {
 
   // Tip flow
   tipOut: number;
+  tipOutByCategory: Record<string, number>; // e.g. { oyster: 20, bar: 15, busser: 10, expo: 5, host: 5 }
   tipIn: number;
-  netTips: number;        // computed: tipsTotal - tipOut + tipIn
+  netTips: number;        // computed: tipsTotal - sum(tipOutByCategory) + tipIn
 
   // Wage
   wage: number;

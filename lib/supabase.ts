@@ -6,35 +6,25 @@ import * as SecureStore from 'expo-secure-store';
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
-// Platform-aware storage adapter — expo-secure-store doesn't work on web
-const ExpoSecureStoreAdapter = {
-  getItem: (key: string) => {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      return Promise.resolve(window.localStorage.getItem(key));
+// Platform-aware storage adapter — expo-secure-store is empty on web
+const isWeb = typeof window !== 'undefined';
+const ExpoSecureStoreAdapter = isWeb
+  ? {
+      getItem: (key: string) => Promise.resolve(localStorage.getItem(key)),
+      setItem: (key: string, value: string) => { localStorage.setItem(key, value); return Promise.resolve(); },
+      removeItem: (key: string) => { localStorage.removeItem(key); return Promise.resolve(); },
     }
-    return SecureStore.getItemAsync(key);
-  },
-  setItem: (key: string, value: string) => {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.setItem(key, value);
-      return Promise.resolve();
-    }
-    return SecureStore.setItemAsync(key, value);
-  },
-  removeItem: (key: string) => {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.removeItem(key);
-      return Promise.resolve();
-    }
-    return SecureStore.deleteItemAsync(key);
-  },
-};
+  : {
+      getItem: (key: string) => SecureStore.getItemAsync(key),
+      setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
+      removeItem: (key: string) => SecureStore.deleteItemAsync(key),
+    };
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     storage: ExpoSecureStoreAdapter,
     autoRefreshToken: true,
-    persistSession: true,
+    persistSession: !isWeb, // disable on web since SecureStore doesn't work
     detectSessionInUrl: false,
   },
 });

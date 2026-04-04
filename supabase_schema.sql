@@ -42,6 +42,7 @@ create table if not exists public.shifts (
   covers integer not null default 0,
   "salesPerCover" real not null default 0,
   "tipOut" real not null default 0,
+  "tipOutByCategory" jsonb not null default '{}',
   "tipIn" real not null default 0,
   "netTips" real not null default 0,
   wage real not null default 0,

@@ -41,6 +41,7 @@ export function initDB() {
       covers INTEGER NOT NULL DEFAULT 0,
       salesPerCover REAL NOT NULL DEFAULT 0,
       tipOut REAL NOT NULL DEFAULT 0,
+      tipOutByCategory TEXT NOT NULL DEFAULT '{}',
       tipIn REAL NOT NULL DEFAULT 0,
       netTips REAL NOT NULL DEFAULT 0,
       wage REAL NOT NULL DEFAULT 0,
@@ -158,6 +159,9 @@ export function getShift(id: string): Shift | null {
 
 export function upsertShift(shift: Shift): void {
   const now = new Date().toISOString();
+  
+  // Serialize tipOutByCategory to JSON string for storage
+  const tipOutByCategoryJson = JSON.stringify(shift.tipOutByCategory || {});
 
   if (isWeb) {
     webShifts.set(shift.id, { ...shift, updatedAt: now });
@@ -168,16 +172,16 @@ export function upsertShift(shift: Shift): void {
     `INSERT OR REPLACE INTO shifts
      (id, userId, jobId, date, clockIn, clockOut, hours,
       tipsCash, tipsCredit, tipsTotal, sales, tipPercent,
-      covers, salesPerCover, tipOut, tipIn, netTips,
+      covers, salesPerCover, tipOut, tipOutByCategory, tipIn, netTips,
       wage, serviceCharge, mileage, grossEarnings,
       notes, synced, createdAt, updatedAt)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     shift.id, shift.userId, shift.jobId, shift.date,
     shift.clockIn, shift.clockOut, shift.hours,
     shift.tipsCash, shift.tipsCredit, shift.tipsTotal,
     shift.sales, shift.tipPercent,
     shift.covers, shift.salesPerCover,
-    shift.tipOut, shift.tipIn, shift.netTips,
+    shift.tipOut, tipOutByCategoryJson, shift.tipIn, shift.netTips,
     shift.wage, shift.serviceCharge, shift.mileage, shift.grossEarnings,
     shift.notes, shift.synced ? 1 : 0,
     shift.createdAt, now,
@@ -268,8 +272,20 @@ function rowToShift(row: any): Shift {
     'SELECT * FROM expenses WHERE shiftId = ?',
     row.id,
   );
+  
+  // Parse tipOutByCategory from JSON string
+  let tipOutByCategory: Record<string, number> = {};
+  try {
+    tipOutByCategory = row.tipOutByCategory 
+      ? JSON.parse(row.tipOutByCategory)
+      : {};
+  } catch {
+    tipOutByCategory = {};
+  }
+  
   return {
     ...row,
+    tipOutByCategory,
     synced: row.synced === 1,
     expenses,
   };

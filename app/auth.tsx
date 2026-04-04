@@ -51,7 +51,7 @@ export default function AuthScreen() {
         {/* Logo area */}
         <View style={styles.logoArea}>
           <Text style={styles.logo}>$</Text>
-          <Text style={styles.appName}>TipLog</Text>
+          <Text style={styles.appName}>Gratuitize Me</Text>
           <Text style={styles.tagline}>Built for Mike Anderson's crew</Text>
         </View>
 
