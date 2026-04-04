@@ -62,6 +62,10 @@ export default function RootLayout() {
             options={{ title: 'Log Shift', presentation: 'modal' }}
           />
           <Stack.Screen
+            name="shift/import"
+            options={{ title: 'Scan Receipt', presentation: 'modal' }}
+          />
+          <Stack.Screen
             name="shift/edit/[id]"
             options={{ title: 'Edit Shift', presentation: 'card' }}
           />

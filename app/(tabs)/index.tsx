@@ -92,6 +92,12 @@ export default function CalendarScreen() {
         >
           <Ionicons name="add" size={24} color={Colors.bg} />
         </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.scanBtn}
+          onPress={() => router.push('/shift/import')}
+        >
+          <Ionicons name="camera" size={20} color={Colors.bg} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -264,6 +270,14 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: Radius.full,
     backgroundColor: Colors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scanBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.success,
     justifyContent: 'center',
     alignItems: 'center',
   },

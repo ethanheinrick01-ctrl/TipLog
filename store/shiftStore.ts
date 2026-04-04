@@ -10,6 +10,10 @@ interface ShiftState {
   jobs: Job[];
   goals: Goal[];
   syncing: boolean;
+  /** Pre-fill data from OCR import — cleared after new.tsx reads it */
+  pendingShift: Partial<Shift> | null;
+
+  setPendingShift: (s: Partial<Shift> | null) => void;
 
   loadAll: (userId: string) => void;
   saveShift: (userId: string, partial: Partial<Shift>) => void;
@@ -29,6 +33,9 @@ export const useShiftStore = create<ShiftState>((set, get) => ({
   jobs: [],
   goals: [],
   syncing: false,
+  pendingShift: null,
+
+  setPendingShift: (s) => set({ pendingShift: s }),
 
   loadAll: (userId) => {
     const shifts = db.getShifts(userId);
