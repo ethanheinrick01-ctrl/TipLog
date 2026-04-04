@@ -3,7 +3,6 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { useShallow } from 'zustand/react/shallow';
 import { supabase } from '../lib/supabase';
 import { initDB } from '../lib/db';
 import { useAuthStore } from '../store/authStore';
@@ -13,9 +12,8 @@ import { Colors } from '../constants/theme';
 
 export default function RootLayout() {
   const { setSession, user } = useAuthStore();
-  const { loadAll, sync } = useShiftStore(
-    useShallow((s) => ({ loadAll: s.loadAll, sync: s.sync }))
-  );
+  const loadAll = useShiftStore((s) => s.loadAll);
+  const sync = useShiftStore((s) => s.sync);
 
   useEffect(() => {
     initDB();

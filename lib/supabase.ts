@@ -24,7 +24,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     storage: ExpoSecureStoreAdapter,
     autoRefreshToken: true,
-    persistSession: !isWeb, // disable on web since SecureStore doesn't work
+    persistSession: true, // enable on web using localStorage
     detectSessionInUrl: false,
   },
 });
