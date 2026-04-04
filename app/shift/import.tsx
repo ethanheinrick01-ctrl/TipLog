@@ -46,6 +46,7 @@ export default function ImportShiftScreen() {
     const res = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsMultipleSelection: true,
+      selectionLimit: 3,
       quality: 0.8,
     });
     if (!res.canceled && res.assets.length > 0) {
@@ -116,7 +117,7 @@ export default function ImportShiftScreen() {
         {/* Header hint */}
         <View style={styles.hint}>
           <Text style={styles.hintText}>
-            Photograph or select your Toast washout slip. GPT-4o will read all the numbers and pre-fill your shift.
+            Photograph or select up to 3 Toast washout slips. GPT-4o will read all the numbers and pre-fill your shift.
           </Text>
         </View>
 
