@@ -2,11 +2,9 @@
  * receiptImport.ts
  *
  * Unified receipt import adapters.
- * SupabaseOcrAdapter calls the live GPT-4o edge function.
+ * SupabaseOcrAdapter calls the live GPT-4o edge function via direct REST fetch.
  * MockOcrAdapter returns fixture data for development.
  */
-
-import { supabase } from "./supabase";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -33,11 +31,14 @@ export interface OcrAdapter {
 
 export class SupabaseOcrAdapter implements OcrAdapter {
   /**
-   * Sends all images at once to the GPT-4o edge function.
-   * imageUris can be local file:// URIs or http:// URIs.
-   * Returns structured ToastReceiptData directly.
+   * Sends all images at once to the GPT-4o edge function via direct REST fetch.
+   * Avoids supabase.functions.invoke to prevent auth refresh loops on web.
    */
   async recognizeImages(imageUris: string[]): Promise<ToastReceiptData> {
+    const projectRef = process.env.EXPO_PUBLIC_SUPABASE_URL?.replace('https://', '').replace('.supabase.co', '');
+    const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
+    const endpoint = `https://${projectRef}.supabase.co/functions/v1/ocr-receipt`;
+
     // Fetch all images and convert to base64
     const base64Images = await Promise.all(
       imageUris.map(async (uri) => {
@@ -48,19 +49,26 @@ export class SupabaseOcrAdapter implements OcrAdapter {
       })
     );
 
-    const { data, error } = await supabase.functions.invoke<ToastReceiptData>(
-      "ocr-receipt",
-      { body: { images: base64Images } }
-    );
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${anonKey}`,
+        },
+        body: JSON.stringify({ images: base64Images }),
+      });
 
-    if (error || !data) {
-      return {
-        success: false,
-        error: error?.message ?? "No response from OCR function",
-      };
+      if (!response.ok) {
+        const errText = await response.text();
+        return { success: false, error: `HTTP ${response.status}: ${errText}` };
+      }
+
+      const data: ToastReceiptData = await response.json();
+      return data;
+    } catch (e: any) {
+      return { success: false, error: e.message ?? 'Network error' };
     }
-
-    return data;
   }
 }
 
@@ -72,11 +80,10 @@ export class MockOcrAdapter implements OcrAdapter {
    * the import UI without hitting the live API.
    */
   async recognizeImages(_imageUris: string[]): Promise<ToastReceiptData> {
-    // Simulate a Friday night shift at Mike Anderson's
     return {
-      date: "2026-04-03",
-      clockIn: "16:00",
-      clockOut: "22:30",
+      date: '2026-04-03',
+      clockIn: '16:00',
+      clockOut: '22:30',
       tipsCredit: 162.28,
       tipsCash: 52.74,
       tipsWithheld: 6.66,
