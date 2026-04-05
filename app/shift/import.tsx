@@ -26,6 +26,7 @@ import { defaultScheduleAdapter, HotSchedulesData, ParsedShift } from '../../lib
 import { useShiftStore } from '../../store/shiftStore';
 import { useAuthStore } from '../../store/authStore';
 import { computeShift, fmt12h } from '../../lib/calculations';
+import { showConfirm } from '../../lib/webAlert';
 import { TIP_OUT_CATEGORIES } from '../../components/ShiftForm';
 
 export default function ImportShiftScreen() {
@@ -200,14 +201,22 @@ export default function ImportShiftScreen() {
       webAlert('Not signed in', 'Sign in to save shifts.');
       return;
     }
-    try {
-      for (let i = 0; i < scheduleResult.shifts.length; i++) {
-        await saveShift(user.id, buildScheduleShift(scheduleResult.shifts[i]));
-        setSavedShifts((prev) => new Set([...prev, i]));
-      }
-    } catch (e: any) {
-      webAlert('Save failed', e.message ?? 'Unknown error');
-    }
+    const count = scheduleResult.shifts.length;
+    showConfirm(
+      'Save All Shifts',
+      `Add all ${count} shift${count !== 1 ? 's' : ''} to your log?`,
+      async () => {
+        try {
+          for (let i = 0; i < scheduleResult!.shifts.length; i++) {
+            await saveShift(user!.id, buildScheduleShift(scheduleResult!.shifts[i]));
+            setSavedShifts((prev) => new Set([...prev, i]));
+          }
+        } catch (e: any) {
+          webAlert('Save failed', e.message ?? 'Unknown error');
+        }
+      },
+      'Save All',
+    );
   }
 
   // ─── Reset on mode change ───────────────────────────────────────────────────
