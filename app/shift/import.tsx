@@ -121,7 +121,7 @@ export default function ImportShiftScreen() {
     try {
       const shift = buildCashoutShift(cashoutResult);
       await saveShift(user.id, shift);
-      router.back();
+      Alert.alert('Shift Saved ✓', 'Your shift has been logged.', [{ text: 'OK', onPress: () => router.back() }]);
     } catch (e: any) {
       Alert.alert('Save failed', e.message ?? 'Unknown error');
     }
@@ -147,6 +147,7 @@ export default function ImportShiftScreen() {
       const shift = buildScheduleShift(parsed);
       await saveShift(user.id, shift);
       setSavedShifts((prev) => new Set([...prev, shiftIndex]));
+      Alert.alert('Shift Saved ✓', `${fmtDateShort(parsed.date)} saved.`);
     } catch (e: any) {
       Alert.alert('Save failed', e.message ?? 'Unknown error');
     }
@@ -163,6 +164,7 @@ export default function ImportShiftScreen() {
         await saveShift(user.id, buildScheduleShift(scheduleResult.shifts[i]));
         setSavedShifts((prev) => new Set([...prev, i]));
       }
+      Alert.alert('All Shifts Saved ✓', `${scheduleResult.shifts.length} shifts logged.`);
     } catch (e: any) {
       Alert.alert('Save failed', e.message ?? 'Unknown error');
     }
@@ -442,6 +444,16 @@ function fmtDate(dateStr: string): string {
     const [y, m, d] = dateStr.split('-').map(Number);
     const date = new Date(y, m - 1, d);
     return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  } catch {
+    return dateStr;
+  }
+}
+
+function fmtDateShort(dateStr: string): string {
+  try {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   } catch {
     return dateStr;
   }
