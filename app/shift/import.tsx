@@ -44,6 +44,9 @@ export default function ImportShiftScreen() {
   const [justSaved, setJustSaved] = useState(false);
   const [editingTipOuts, setEditingTipOuts] = useState(false);
   const [tipOutOverrides, setTipOutOverrides] = useState<Record<string, string>>({});
+  // null = unanswered, true = yes, false = no
+  const [hasRunner, setHasRunner] = useState<boolean | null>(null);
+  const [hasBusser, setHasBusser] = useState<boolean | null>(null);
 
   // Schedule result
   const [scheduleResult, setScheduleResult] = useState<HotSchedulesData | null>(null);
@@ -102,13 +105,16 @@ export default function ImportShiftScreen() {
         setCashoutResult(data);
         setCashTipsOverride('');
         // Initialize tip-out overrides from parsed data
-        if (data.tipOutByCategory) {
-          const init: Record<string, string> = {};
-          Object.entries(data.tipOutByCategory).forEach(([k, v]) => { init[k] = String(v ?? ''); });
-          setTipOutOverrides(init);
-        } else {
-          setTipOutOverrides({});
-        }
+        const cats = data.tipOutByCategory ?? {};
+        const init: Record<string, string> = {};
+        Object.entries(cats).forEach(([k, v]) => { init[k] = String(v ?? ''); });
+        setTipOutOverrides(init);
+        // Default runner/busser based on whether OCR found a value
+        // If OCR detected a value → yes; otherwise prompt user (default no)
+        const runnerAmt = cats.runner ?? 0;
+        const busserAmt = cats.busser ?? 0;
+        setHasRunner(runnerAmt > 0 ? true : false);
+        setHasBusser(busserAmt > 0 ? true : false);
         if (!data.success) setError(data.error ?? 'Failed to parse receipt');
       } else {
         const data = await defaultScheduleAdapter.recognizeImages(selectedImages);
@@ -140,7 +146,7 @@ export default function ImportShiftScreen() {
     }
     try {
       setSaving(true);
-      const shift = buildCashoutShift(cashoutResult, parseFloat(cashTipsOverride || '0'), tipOutOverrides);
+      const shift = buildCashoutShift(cashoutResult, parseFloat(cashTipsOverride || '0'), getEffectiveTipOuts());
       await saveShift(user.id, shift);
       setSaving(false);
       setJustSaved(true); // navigate once React settles
@@ -161,7 +167,7 @@ export default function ImportShiftScreen() {
 
   function handleOpenCashoutForm() {
     if (!cashoutResult?.success) return;
-    const shiftData = buildCashoutShift(cashoutResult, parseFloat(cashTipsOverride || '0'), tipOutOverrides);
+    const shiftData = buildCashoutShift(cashoutResult, parseFloat(cashTipsOverride || '0'), getEffectiveTipOuts());
     useShiftStore.getState().setPendingShift(shiftData);
     router.push('/shift/new');
   }
@@ -227,6 +233,35 @@ export default function ImportShiftScreen() {
     setCashTipsOverride('');
     setEditingTipOuts(false);
     setTipOutOverrides({});
+    setHasRunner(null);
+    setHasBusser(null);
+  }
+
+  /** Returns tip-out overrides with runner/busser zeroed if user said No */
+  function getEffectiveTipOuts(): Record<string, string> {
+    const result = { ...tipOutOverrides };
+    if (hasRunner === false) result.runner = '0';
+    if (hasBusser === false) result.busser = '0';
+    return result;
+  }
+
+  function handleRunnerToggle(val: boolean) {
+    setHasRunner(val);
+    if (!val) setTipOutOverrides((prev) => ({ ...prev, runner: '0' }));
+    else {
+      // Restore OCR value if it had one
+      const ocr = cashoutResult?.tipOutByCategory?.runner ?? 0;
+      setTipOutOverrides((prev) => ({ ...prev, runner: String(ocr) }));
+    }
+  }
+
+  function handleBusserToggle(val: boolean) {
+    setHasBusser(val);
+    if (!val) setTipOutOverrides((prev) => ({ ...prev, busser: '0' }));
+    else {
+      const ocr = cashoutResult?.tipOutByCategory?.busser ?? 0;
+      setTipOutOverrides((prev) => ({ ...prev, busser: String(ocr) }));
+    }
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -403,6 +438,23 @@ export default function ImportShiftScreen() {
             <ResultRow label="3% Tax Withheld" value={cashoutResult.tipsWithheld} prefix="$" />
             <ResultRow label="Total Sales" value={cashoutResult.sales} prefix="$" />
             <ResultRow label="Covers" value={cashoutResult.covers} />
+            {/* Runner / Busser toggles — always shown after scan */}
+            {isCashoutDone && (
+              <View style={styles.staffToggles}>
+                <Text style={styles.sectionHeader}>Support Staff This Shift?</Text>
+                <StaffToggle
+                  label="Food Runner"
+                  value={hasRunner}
+                  onToggle={handleRunnerToggle}
+                />
+                <StaffToggle
+                  label="Busser"
+                  value={hasBusser}
+                  onToggle={handleBusserToggle}
+                />
+              </View>
+            )}
+
             {(Object.keys(tipOutOverrides).length > 0 || editingTipOuts) && (
               <>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: Spacing.sm }}>
@@ -539,6 +591,36 @@ function ResultRow({
   );
 }
 
+function StaffToggle({
+  label,
+  value,
+  onToggle,
+}: {
+  label: string;
+  value: boolean | null;
+  onToggle: (v: boolean) => void;
+}) {
+  return (
+    <View style={styles.staffToggleRow}>
+      <Text style={styles.staffToggleLabel}>{label}</Text>
+      <View style={styles.staffToggleBtns}>
+        <TouchableOpacity
+          style={[styles.staffBtn, value === true && styles.staffBtnYes]}
+          onPress={() => onToggle(true)}
+        >
+          <Text style={[styles.staffBtnText, value === true && styles.staffBtnTextActive]}>Yes</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.staffBtn, value === false && styles.staffBtnNo]}
+          onPress={() => onToggle(false)}
+        >
+          <Text style={[styles.staffBtnText, value === false && styles.staffBtnTextActive]}>No</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
 function fmtCat(key: string): string {
   const map: Record<string, string> = {
     busser: 'Busser', runner: 'Runner', bar: 'Bar', oyster: 'Oyster',
@@ -657,4 +739,21 @@ const styles = StyleSheet.create({
   saveAllBtnText: { color: Colors.bg, fontWeight: '800', fontSize: FontSize.md },
   cancelBtn: { alignItems: 'center', padding: Spacing.md },
   cancelBtnText: { color: Colors.textMuted, fontSize: FontSize.md },
+  // Staff toggles
+  staffToggles: { marginTop: Spacing.sm, paddingTop: Spacing.sm, borderTopWidth: 1, borderTopColor: Colors.border },
+  staffToggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6 },
+  staffToggleLabel: { fontSize: FontSize.md, color: Colors.textSecondary, flex: 1 },
+  staffToggleBtns: { flexDirection: 'row', gap: 6 },
+  staffBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: Radius.full,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    backgroundColor: 'transparent',
+  },
+  staffBtnYes: { borderColor: Colors.success, backgroundColor: Colors.success + '22' },
+  staffBtnNo: { borderColor: Colors.error, backgroundColor: Colors.error + '22' },
+  staffBtnText: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.textMuted },
+  staffBtnTextActive: { color: Colors.textPrimary },
 });
