@@ -248,11 +248,8 @@ export function summarizeShifts(shifts: Shift[]): PeriodSummary {
     s.hours += shift.hours;
     s.sales += shift.sales;
     s.covers += shift.covers;
-    // Sum tipOut from both legacy tipOut field and tipOutByCategory
-    const categoryTotal = shift.tipOutByCategory 
-      ? Object.values(shift.tipOutByCategory).reduce((a, b) => a + b, 0)
-      : 0;
-    s.tipOut += shift.tipOut + categoryTotal;
+    // shift.tipOut is already the authoritative total (set by computeShift from categories)
+    s.tipOut += shift.tipOut;
     s.tipIn += shift.tipIn;
     s.serviceCharge += shift.serviceCharge;
     s.mileage += shift.mileage;

@@ -4,6 +4,7 @@ import * as db from '../lib/db';
 import { deleteShift as dbDeleteShift, upsertShift as dbUpsertShift, getShift as dbGetShift, getShifts as dbGetShifts } from '../lib/db';
 import { computeShift } from '../lib/calculations';
 import { syncAll } from '../lib/sync';
+import { supabase } from '../lib/supabase';
 import { randomUUID } from 'expo-crypto';
 import { Platform } from 'react-native';
 
@@ -71,12 +72,17 @@ export const useShiftStore = create<ShiftState>((set, get) => ({
     set({ shifts: dbGetShifts(userId) });
   },
 
-  deleteShift: (id) => {
-    dbDeleteShift(id);
-    // Re-read shifts after delete — get current user from store state
+  deleteShift: async (id) => {
+    // Get userId before deleting from local store
     const state = useShiftStore.getState();
     const userId = state.shifts.find((s) => s.id === id)?.userId ?? '';
+    // Delete locally first so UI responds immediately
+    dbDeleteShift(id);
     set({ shifts: dbGetShifts(userId) });
+    // Then delete from Supabase so it doesn't come back on next sync
+    supabase.from('shifts').delete().eq('id', id).then(({ error }) => {
+      if (error) console.warn('Supabase delete error:', error.message);
+    });
   },
 
   saveJob: (job) => {
