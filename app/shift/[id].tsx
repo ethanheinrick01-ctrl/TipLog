@@ -41,7 +41,8 @@ export default function ShiftDetailScreen() {
         style: 'destructive',
         onPress: () => {
           deleteShift(shift!.id);
-          router.back();
+          // Give React time to re-render before navigating back
+          setTimeout(() => router.back(), 50);
         },
       },
     ]);

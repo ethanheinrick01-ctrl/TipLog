@@ -117,33 +117,39 @@ export function ShiftForm({ existing, initialDate }: Props) {
     setTipOutCategories((prev) => ({ ...prev, [key]: value }));
   }
 
-  function handleSave() {
-    if (!user?.id) return;
+  async function handleSave() {
+    if (!user?.id) {
+      Alert.alert('Not signed in', 'Sign in to save shifts.');
+      return;
+    }
     if (!jobId) {
       Alert.alert('No Job', 'Add a job in Settings first.');
       return;
     }
 
-    saveShift(user.id, {
-      id: existing?.id,
-      date,
-      jobId,
-      clockIn,
-      clockOut,
-      tipsCash: parseFloat(tipsCash) || 0,
-      tipsCredit: parseFloat(tipsCredit) || 0,
-      sales: parseFloat(sales) || 0,
-      covers: parseInt(covers) || 0,
-      tipOutByCategory,
-      tipIn: parseFloat(tipIn) || 0,
-      wage: parseFloat(wage) || 0,
-      serviceCharge: parseFloat(serviceCharge) || 0,
-      mileage: parseFloat(mileage) || 0,
-      notes,
-      expenses: expenses.map((e) => ({ ...e, shiftId })),
-    });
-
-    router.back();
+    try {
+      await saveShift(user.id, {
+        id: existing?.id,
+        date,
+        jobId,
+        clockIn,
+        clockOut,
+        tipsCash: parseFloat(tipsCash) || 0,
+        tipsCredit: parseFloat(tipsCredit) || 0,
+        sales: parseFloat(sales) || 0,
+        covers: parseInt(covers) || 0,
+        tipOutByCategory,
+        tipIn: parseFloat(tipIn) || 0,
+        wage: parseFloat(wage) || 0,
+        serviceCharge: parseFloat(serviceCharge) || 0,
+        mileage: parseFloat(mileage) || 0,
+        notes,
+        expenses: expenses.map((e) => ({ ...e, shiftId })),
+      });
+      router.back();
+    } catch (e: any) {
+      Alert.alert('Save failed', e.message ?? 'Unknown error');
+    }
   }
 
   const isEdit = !!existing;
