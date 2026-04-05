@@ -32,10 +32,9 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (user?.id) {
-      loadAll(user.id);
-      syncAll(user.id); // pull from Supabase on load
-    }
+    if (!user?.id) return;
+    // loadAll handles sync on web natively; on native it reads local SQLite
+    loadAll(user.id);
   }, [user?.id]);
 
   return (

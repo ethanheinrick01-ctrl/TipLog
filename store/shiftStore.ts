@@ -5,6 +5,7 @@ import { deleteShift as dbDeleteShift, upsertShift as dbUpsertShift, getShift as
 import { computeShift } from '../lib/calculations';
 import { syncAll } from '../lib/sync';
 import { randomUUID } from 'expo-crypto';
+import { Platform } from 'react-native';
 
 interface ShiftState {
   shifts: Shift[];
@@ -38,11 +39,17 @@ export const useShiftStore = create<ShiftState>((set, get) => ({
 
   setPendingShift: (s) => set({ pendingShift: s }),
 
-  loadAll: (userId) => {
-    const shifts = db.getShifts(userId);
-    const jobs = db.getJobs();
-    const goals = db.getGoals(userId);
-    set({ shifts, jobs, goals });
+  loadAll: async (userId) => {
+    if (Platform.OS === 'web') {
+      // On web, syncAll pulls from Supabase into webShifts Map — do this eagerly
+      await syncAll(userId);
+      set({ shifts: dbGetShifts(userId), jobs: db.getJobs(), goals: db.getGoals(userId) });
+    } else {
+      const shifts = db.getShifts(userId);
+      const jobs = db.getJobs();
+      const goals = db.getGoals(userId);
+      set({ shifts, jobs, goals });
+    }
   },
 
   saveShift: (userId, partial) => {
