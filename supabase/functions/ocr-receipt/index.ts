@@ -154,6 +154,15 @@ serve(async (req) => {
 - Return date as YYYY-MM-DD — e.g. "4/4/2026" → "${currentYear}-04-04"
 - NEVER return a year before 2025 — if you're unsure, use ${currentYear}
 
+## SHIFT DATE vs. PRINT TIMESTAMP (critical — read carefully):
+Toast slips contain TWO different dates that must NOT be confused:
+1. SHIFT DATE — appears in the slip header near the employee name, position, and clock-in/out times. This is the date the shift actually occurred. USE THIS DATE.
+2. PRINT TIMESTAMP — appears in the bottom-right corner or footer, formatted like "4/4/2026, 2:11 PM". This is when the receipt was physically printed (often the next morning after a closing shift). IGNORE THIS DATE for the "date" field.
+
+Rule: ALWAYS use the shift date from the header, NOT the print timestamp from the footer.
+If the slip header shows the shift was on 4/3/2026 but the footer shows "Printed: 4/4/2026, 2:11 PM", return date: "${currentYear}-04-03".
+The clockIn and clockOut fields confirm which date is the shift date — they always belong to the shift date, not the print date.
+
 ## TIP SHARING SECTION (most important — read carefully)
 
 The TIP SHARING section has rows like this:
