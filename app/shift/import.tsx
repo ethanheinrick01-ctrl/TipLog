@@ -14,6 +14,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -38,6 +39,7 @@ export default function ImportShiftScreen() {
 
   // Cashout result
   const [cashoutResult, setCashoutResult] = useState<ToastReceiptData | null>(null);
+  const [cashTipsOverride, setCashTipsOverride] = useState<string>('');
 
   // Schedule result
   const [scheduleResult, setScheduleResult] = useState<HotSchedulesData | null>(null);
@@ -94,6 +96,7 @@ export default function ImportShiftScreen() {
       if (mode === 'cashout') {
         const data = await defaultOcrAdapter.recognizeImages(selectedImages);
         setCashoutResult(data);
+        setCashTipsOverride('');
         if (!data.success) setError(data.error ?? 'Failed to parse receipt');
       } else {
         const data = await defaultScheduleAdapter.recognizeImages(selectedImages);
@@ -125,7 +128,7 @@ export default function ImportShiftScreen() {
     }
     try {
       setSaving(true);
-      const shift = buildCashoutShift(cashoutResult);
+      const shift = buildCashoutShift(cashoutResult, parseFloat(cashTipsOverride || '0'));
       await saveShift(user.id, shift);
       setSaving(false);
       Alert.alert('Shift Saved ✓', 'Your shift has been logged.', [{ text: 'OK', onPress: () => router.back() }]);
@@ -137,7 +140,7 @@ export default function ImportShiftScreen() {
 
   function handleOpenCashoutForm() {
     if (!cashoutResult?.success) return;
-    const shiftData = buildCashoutShift(cashoutResult);
+    const shiftData = buildCashoutShift(cashoutResult, parseFloat(cashTipsOverride || '0'));
     useShiftStore.getState().setPendingShift(shiftData);
     router.push('/shift/new');
   }
@@ -200,14 +203,15 @@ export default function ImportShiftScreen() {
     setScheduleResult(null);
     setError(null);
     setSavedShifts(new Set());
+    setCashTipsOverride('');
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-  function buildCashoutShift(r: ToastReceiptData) {
+  function buildCashoutShift(r: ToastReceiptData, cashTips = 0) {
     const tipOutByCategory = r.tipOutByCategory ?? {};
     const computed = computeShift({
-      tipsCash: r.tipsCash ?? 0,
+      tipsCash: cashTips,
       tipsCredit: r.tipsCredit ?? 0,
       sales: r.sales ?? 0,
       covers: r.covers ?? 0,
@@ -220,7 +224,7 @@ export default function ImportShiftScreen() {
       jobId: '',
       clockIn: r.clockIn ?? '17:00',
       clockOut: r.clockOut ?? '23:00',
-      tipsCash: r.tipsCash ?? 0,
+      tipsCash: cashTips,
       tipsCredit: r.tipsCredit ?? 0,
       sales: r.sales ?? 0,
       covers: r.covers ?? 0,
@@ -353,7 +357,21 @@ export default function ImportShiftScreen() {
             <ResultRow label="Clock In" value={cashoutResult.clockIn} />
             <ResultRow label="Clock Out" value={cashoutResult.clockOut} />
             <ResultRow label="Credit Tips" value={cashoutResult.tipsCredit} prefix="$" />
-            <ResultRow label="Cash Tips" value={cashoutResult.tipsCash} prefix="$" />
+            {/* Cash tips — Toast POS doesn't capture cash, user enters manually */}
+            <View style={styles.resultRow}>
+              <Text style={styles.resultLabel}>Cash Tips</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={{ color: Colors.textMuted, fontSize: FontSize.xs }}>(not in POS)</Text>
+                <TextInput
+                  style={styles.cashTipsInput}
+                  placeholder="0.00"
+                  placeholderTextColor={Colors.textMuted}
+                  keyboardType="decimal-pad"
+                  value={cashTipsOverride}
+                  onChangeText={setCashTipsOverride}
+                />
+              </View>
+            </View>
             <ResultRow label="3% Tax Withheld" value={cashoutResult.tipsWithheld} prefix="$" />
             <ResultRow label="Total Sales" value={cashoutResult.sales} prefix="$" />
             <ResultRow label="Covers" value={cashoutResult.covers} />
@@ -522,6 +540,19 @@ const styles = StyleSheet.create({
   resultSub: { fontSize: FontSize.sm, color: Colors.textSecondary, marginBottom: Spacing.sm },
   sectionHeader: { fontSize: FontSize.xs, fontWeight: '700', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginTop: Spacing.sm, marginBottom: Spacing.xs },
   resultRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 },
+  cashTipsInput: {
+    backgroundColor: Colors.card,
+    borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    color: Colors.textPrimary,
+    fontSize: FontSize.md,
+    fontWeight: '600',
+    minWidth: 72,
+    textAlign: 'right',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
   resultLabel: { fontSize: FontSize.md, color: Colors.textSecondary },
   resultValue: { fontSize: FontSize.md, fontWeight: '600', color: Colors.textPrimary },
   resultActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md },
