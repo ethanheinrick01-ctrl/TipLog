@@ -183,8 +183,10 @@ export function computeShift(raw: Partial<Shift>): Partial<Shift> {
   // Backward compatibility: if tipOutByCategory is empty/invalid but tipOut exists, use that
   const effectiveTipOut = totalTipOut > 0 ? totalTipOut : (raw.tipOut ?? 0);
   
+  const tipsWithheld = Math.min(raw.tipsWithheld ?? 0, credit); // can't exceed credit tips
   const tipIn = raw.tipIn ?? 0;
-  const netTips = tipsTotal - effectiveTipOut + tipIn;
+  // Formula: (credit tips after 3% tax) + (cash tips after tip-out) + tip-in
+  const netTips = (credit - tipsWithheld) + cash - effectiveTipOut + tipIn;
 
   const wage = raw.wage ?? 0;
   const hours = computeHours(raw.clockIn, raw.clockOut);
@@ -292,4 +294,16 @@ export function fmt(n: number): string {
 
 export function fmtPct(n: number): string {
   return n.toFixed(1) + '%';
+}
+
+/** Convert 24h "HH:MM" to 12h "h:MM AM/PM". Returns original string if not parseable. */
+export function fmt12h(time: string): string {
+  if (!time) return time;
+  const m = time.match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return time;
+  const h = parseInt(m[1]);
+  const min = m[2];
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const display = h % 12 || 12; // 0→12 (midnight), 12→12 (noon), 13→1, etc.
+  return `${display}:${min} ${ampm}`;
 }

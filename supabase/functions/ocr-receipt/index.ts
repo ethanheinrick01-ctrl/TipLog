@@ -1,8 +1,10 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 
 /** Normalise a GPT role string to a known tipOutByCategory key. */
-function normaliseRole(role: string): string {
-  const r = role.toLowerCase();
+function normaliseRole(role: string): string | null {
+  const r = role.toLowerCase().trim();
+  // Explicitly reject total/subtotal rows so they never pollute category buckets
+  if (r === 'total' || r === 'subtotal' || r.startsWith('total ')) return null;
   if (r.includes('busser')) return 'busser';
   if (r.includes('runner')) return 'runner';
   if (r.includes('bar') && !r.includes('wine')) return 'bar';
@@ -41,6 +43,7 @@ function mapGptToReceiptData(gpt: any): ToastReceiptData {
   if (gpt.tipOutByCategory && typeof gpt.tipOutByCategory === 'object' && !Array.isArray(gpt.tipOutByCategory)) {
     for (const [role, val] of Object.entries(gpt.tipOutByCategory)) {
       const key = normaliseRole(role);
+      if (key === null) continue; // skip total/subtotal rows
       const amt = parseFloat(String(val));
       if (!isNaN(amt)) tipOut[key] = (tipOut[key] ?? 0) + amt;
     }
@@ -50,6 +53,7 @@ function mapGptToReceiptData(gpt: any): ToastReceiptData {
   const entries = Array.isArray(gpt.tipSharingEntries) ? gpt.tipSharingEntries : [];
   for (const entry of entries) {
     const key = normaliseRole(entry.role ?? '');
+    if (key === null) continue; // skip total/subtotal rows
     const amt = parseFloat(entry.amount);
     if (!isNaN(amt)) tipOut[key] = (tipOut[key] ?? 0) + amt;
   }
@@ -174,20 +178,23 @@ Example 2 (evening shift):
   Oysters | 8% of Oysters | $3.67
   → busser: 14.79, runner: 14.79, bar: 14.30, oyster: 3.67
 
-Example 3 (evening shift — Bar and Oysters totaled differently):
+Example 3 (evening shift with Bar and Bar Wine separate):
   Busser | 1.50% of Food | $14.79
   Runner | 1.50% of Food | $14.79
-  Bar | 8% of Beer, Liquor, NA Beverage | $47.55
+  Bar | 8% of Beer, Liquor, NA Beverage | $14.30
+  Bar Wine | 8% of Wine | $0.00
   Oysters | 8% of Oysters | $3.67
-  → busser: 14.79, runner: 14.79, bar: 47.55, oyster: 3.67
-  (Note: $47.55 is the correct bar value as-printed on this slip)
+  Total | | $47.55
+  → busser: 14.79, runner: 14.79, bar: 14.30, oyster: 3.67
+  (The $47.55 is the TOTAL row — it is NEVER assigned to Bar or any other category)
 
 ## KEY RULES FOR TIP SHARING:
 1. Extract each dollar amount DIRECTLY from the rightmost column — do NOT compute or recompute
 2. If a row has a blank dollar amount, treat it as 0 or omit the key
 3. If "Bar" and "Bar Wine" appear as separate rows, sum their dollar amounts into bar
 4. Possible roles (use these exact keys): busser, runner, bar, oyster, expo, host, foodRunner, support, other
-5. The "Total" row at the bottom is the sum — do NOT use it as any individual category value
+5. The "Total" row at the bottom is the sum of all rows — NEVER assign it to Bar or any other role
+6. CRITICAL: The last dollar amount in the TIP SHARING section is always the running Total — it will be larger than any individual row. Do NOT assign it to any category.
 
 ## OTHER SECTIONS:
 - TIPS & FEES EARNED: tipsCredit (non-cash), tipsCash, tipsWithheld (3% employer tax already deducted)

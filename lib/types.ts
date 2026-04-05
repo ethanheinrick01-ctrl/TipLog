@@ -41,8 +41,9 @@ export interface Shift {
   // Tip flow
   tipOut: number;
   tipOutByCategory: Record<string, number>; // e.g. { oyster: 20, bar: 15, busser: 10, expo: 5, host: 5 }
+  tipsWithheld: number;   // 3% employer tax withheld by restaurant on credit tips
   tipIn: number;
-  netTips: number;        // computed: tipsTotal - sum(tipOutByCategory) + tipIn
+  netTips: number;        // computed: (tipsCredit - tipsWithheld) + (tipsCash - tipOut) + tipIn
 
   // Wage
   wage: number;

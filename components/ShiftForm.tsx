@@ -82,6 +82,7 @@ export function ShiftForm({ existing, initialDate }: Props) {
   const [sales, setSales] = useState(existing?.sales ? String(existing.sales) : '');
   const [covers, setCovers] = useState(existing?.covers ? String(existing.covers) : '');
   const [tipOutCategories, setTipOutCategories] = useState<Record<string, string>>(initCategories);
+  const [tipsWithheld, setTipsWithheld] = useState(existing?.tipsWithheld ? String(existing.tipsWithheld) : '');
   const [tipIn, setTipIn] = useState(existing?.tipIn ? String(existing.tipIn) : '');
   const [wage, setWage] = useState(existing?.wage ? String(existing.wage) : (defaultJob?.defaultWage?.toString() ?? '2.13'));
   const [serviceCharge, setServiceCharge] = useState(existing?.serviceCharge ? String(existing.serviceCharge) : '');
@@ -100,6 +101,7 @@ export function ShiftForm({ existing, initialDate }: Props) {
   const preview = computeShift({
     tipsCash: parseFloat(tipsCash) || 0,
     tipsCredit: parseFloat(tipsCredit) || 0,
+    tipsWithheld: parseFloat(tipsWithheld) || 0,
     sales: parseFloat(sales) || 0,
     covers: parseInt(covers) || 0,
     tipOutByCategory,
@@ -141,6 +143,7 @@ export function ShiftForm({ existing, initialDate }: Props) {
         clockOut,
         tipsCash: parseFloat(tipsCash) || 0,
         tipsCredit: parseFloat(tipsCredit) || 0,
+        tipsWithheld: parseFloat(tipsWithheld) || 0,
         sales: parseFloat(sales) || 0,
         covers: parseInt(covers) || 0,
         tipOutByCategory,
@@ -212,6 +215,7 @@ export function ShiftForm({ existing, initialDate }: Props) {
         <View style={styles.row3}>
           <Field label="Cash Tips" value={tipsCash} onChange={setTipsCash} numeric accent={Colors.cash} />
           <Field label="Credit Tips" value={tipsCredit} onChange={setTipsCredit} numeric accent={Colors.credit} />
+          <Field label="3% Withheld" value={tipsWithheld} onChange={setTipsWithheld} numeric accent={Colors.error} />
         </View>
 
         {/* Sales */}

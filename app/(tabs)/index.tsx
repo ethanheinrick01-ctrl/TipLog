@@ -26,7 +26,7 @@ import {
 import { Colors, Spacing, Radius, FontSize } from '../../constants/theme';
 import { useShiftStore } from '../../store/shiftStore';
 import { useAuthStore } from '../../store/authStore';
-import { fmt } from '../../lib/calculations';
+import { fmt, fmt12h } from '../../lib/calculations';
 import { Shift } from '../../lib/types';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -227,7 +227,7 @@ export default function CalendarScreen() {
                     <View style={[styles.jobDot, { backgroundColor: job?.color ?? Colors.accent }]} />
                     <View style={{ flex: 1 }}>
                       <Text style={styles.modalShiftName}>{job?.name ?? 'Unknown'} · {job?.position ?? ''}</Text>
-                      <Text style={styles.modalShiftSub}>{shift.clockIn} – {shift.clockOut} · {shift.hours}h</Text>
+                      <Text style={styles.modalShiftSub}>{fmt12h(shift.clockIn)} – {fmt12h(shift.clockOut)} · {shift.hours}h</Text>
                     </View>
                     <Text style={styles.modalShiftEarnings}>{fmt(shift.grossEarnings)}</Text>
                     <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />

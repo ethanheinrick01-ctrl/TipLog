@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { format, parseISO } from 'date-fns';
 import { Colors, Spacing, Radius, FontSize } from '../../constants/theme';
 import { useShiftStore } from '../../store/shiftStore';
-import { fmt, fmtPct } from '../../lib/calculations';
+import { fmt, fmtPct, fmt12h } from '../../lib/calculations';
 
 export default function ShiftDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -127,8 +127,8 @@ export default function ShiftDetailScreen() {
 
         {/* Hours & Wage */}
         <SectionTitle label="Hours & Wage" />
-        <Row label="Clock In" value={shift.clockIn} />
-        <Row label="Clock Out" value={shift.clockOut} />
+        <Row label="Clock In" value={fmt12h(shift.clockIn)} />
+        <Row label="Clock Out" value={fmt12h(shift.clockOut)} />
         <Row label="Total Hours" value={shift.hours.toFixed(2) + 'h'} />
         <Row label="Hourly Wage" value={fmt(shift.wage) + '/hr'} />
         <Row label="Wage Earned" value={fmt(shift.wage * shift.hours)} />

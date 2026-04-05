@@ -5,6 +5,8 @@ import {
   upsertShift,
   getJobs,
   upsertJob,
+  getPendingDeletes,
+  clearPendingDelete,
 } from './db';
 import { Shift, Job } from './types';
 
@@ -12,9 +14,30 @@ import { Shift, Job } from './types';
  * Push unsynced local shifts to Supabase, pull remote changes.
  */
 export async function syncAll(userId: string): Promise<void> {
+  await processPendingDeletes(userId);
   await pushShifts(userId);
   await pullShifts(userId);
   await syncJobs(userId);
+}
+
+async function processPendingDeletes(userId: string): Promise<void> {
+  const ids = getPendingDeletes();
+  if (!ids.length) return;
+
+  for (const id of ids) {
+    const { error } = await supabase
+      .from('shifts')
+      .delete()
+      .eq('id', id)
+      .eq('userId', userId);
+
+    if (error) {
+      console.warn('processPendingDeletes: failed to delete shift', id, error.message);
+      // leave it in pendingDeletes — will retry on next sync
+    } else {
+      clearPendingDelete(id);
+    }
+  }
 }
 
 async function pushShifts(userId: string): Promise<void> {

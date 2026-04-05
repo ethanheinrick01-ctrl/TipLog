@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { Shift, Job, Goal } from '../lib/types';
 import * as db from '../lib/db';
-import { deleteShift as dbDeleteShift, upsertShift as dbUpsertShift, getShift as dbGetShift, getShifts as dbGetShifts } from '../lib/db';
+import { deleteShift as dbDeleteShift, upsertShift as dbUpsertShift, getShift as dbGetShift, getShifts as dbGetShifts, queueDelete } from '../lib/db';
 import { computeShift } from '../lib/calculations';
 import { syncAll } from '../lib/sync';
 import { supabase } from '../lib/supabase';
@@ -79,10 +79,20 @@ export const useShiftStore = create<ShiftState>((set, get) => ({
     // Delete locally first so UI responds immediately
     dbDeleteShift(id);
     set({ shifts: dbGetShifts(userId) });
-    // Then delete from Supabase so it doesn't come back on next sync
-    supabase.from('shifts').delete().eq('id', id).then(({ error }) => {
-      if (error) console.warn('Supabase delete error:', error.message);
-    });
+
+    if (Platform.OS === 'web') {
+      // Web has no SQLite — fire-and-forget is acceptable, Supabase is source of truth
+      supabase.from('shifts').delete().eq('id', id).then(({ error }) => {
+        if (error) console.warn('Supabase delete error (web):', error.message);
+      });
+    } else {
+      // Queue the Supabase delete durably, then kick off a background sync
+      // so the delete reaches Supabase immediately without waiting for the user to tap Sync
+      queueDelete(id);
+      if (userId) {
+        syncAll(userId).catch((e) => console.warn('Post-delete sync error:', e));
+      }
+    }
   },
 
   saveJob: (job) => {

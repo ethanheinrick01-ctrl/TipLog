@@ -42,6 +42,7 @@ export function initDB() {
       salesPerCover REAL NOT NULL DEFAULT 0,
       tipOut REAL NOT NULL DEFAULT 0,
       tipOutByCategory TEXT NOT NULL DEFAULT '{}',
+      tipsWithheld REAL NOT NULL DEFAULT 0,
       tipIn REAL NOT NULL DEFAULT 0,
       netTips REAL NOT NULL DEFAULT 0,
       wage REAL NOT NULL DEFAULT 0,
@@ -75,11 +76,31 @@ export function initDB() {
       createdAt TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS pendingDeletes (
+      id TEXT PRIMARY KEY,
+      queuedAt TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_shifts_date ON shifts(date);
     CREATE INDEX IF NOT EXISTS idx_shifts_jobId ON shifts(jobId);
     CREATE INDEX IF NOT EXISTS idx_shifts_synced ON shifts(synced);
     CREATE INDEX IF NOT EXISTS idx_expenses_shiftId ON expenses(shiftId);
   `);
+
+  // Migration: add tipsWithheld for existing databases that predate this column
+  try {
+    db!.runSync('ALTER TABLE shifts ADD COLUMN tipsWithheld REAL NOT NULL DEFAULT 0');
+  } catch { /* column already exists */ }
+
+  // Migration: add pendingDeletes table for existing databases that predate this table
+  try {
+    db!.runSync(`
+      CREATE TABLE IF NOT EXISTS pendingDeletes (
+        id TEXT PRIMARY KEY,
+        queuedAt TEXT NOT NULL
+      )
+    `);
+  } catch { /* table already exists */ }
 }
 
 // ─── Jobs ─────────────────────────────────────────────────────────────────
@@ -122,7 +143,9 @@ export function getShifts(userId: string): Shift[] {
   }
 
   const rows = db!.getAllSync<any>(
-    'SELECT * FROM shifts WHERE userId = ? ORDER BY date DESC',
+    `SELECT * FROM shifts
+     WHERE userId = ? AND id NOT IN (SELECT id FROM pendingDeletes)
+     ORDER BY date DESC`,
     userId,
   );
   return rows.map(rowToShift);
@@ -142,6 +165,7 @@ export function getShiftsByDateRange(
   const rows = db!.getAllSync<any>(
     `SELECT * FROM shifts
      WHERE userId = ? AND date >= ? AND date <= ?
+     AND id NOT IN (SELECT id FROM pendingDeletes)
      ORDER BY date DESC`,
     userId, startDate, endDate,
   );
@@ -153,7 +177,10 @@ export function getShift(id: string): Shift | null {
     return webShifts.get(id) ?? null;
   }
 
-  const row = db!.getFirstSync<any>('SELECT * FROM shifts WHERE id = ?', id);
+  const row = db!.getFirstSync<any>(
+    'SELECT * FROM shifts WHERE id = ? AND id NOT IN (SELECT id FROM pendingDeletes)',
+    id,
+  );
   return row ? rowToShift(row) : null;
 }
 
@@ -172,16 +199,16 @@ export function upsertShift(shift: Shift): void {
     `INSERT OR REPLACE INTO shifts
      (id, userId, jobId, date, clockIn, clockOut, hours,
       tipsCash, tipsCredit, tipsTotal, sales, tipPercent,
-      covers, salesPerCover, tipOut, tipOutByCategory, tipIn, netTips,
+      covers, salesPerCover, tipOut, tipOutByCategory, tipsWithheld, tipIn, netTips,
       wage, serviceCharge, mileage, grossEarnings,
       notes, synced, createdAt, updatedAt)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     shift.id, shift.userId, shift.jobId, shift.date,
     shift.clockIn, shift.clockOut, shift.hours,
     shift.tipsCash, shift.tipsCredit, shift.tipsTotal,
     shift.sales, shift.tipPercent,
     shift.covers, shift.salesPerCover,
-    shift.tipOut, tipOutByCategoryJson, shift.tipIn, shift.netTips,
+    shift.tipOut, tipOutByCategoryJson, shift.tipsWithheld ?? 0, shift.tipIn, shift.netTips,
     shift.wage, shift.serviceCharge, shift.mileage, shift.grossEarnings,
     shift.notes, shift.synced ? 1 : 0,
     shift.createdAt, now,
@@ -227,6 +254,33 @@ export function markShiftSynced(id: string): void {
     return;
   }
   db!.runSync('UPDATE shifts SET synced = 1 WHERE id = ?', id);
+}
+
+// ─── Pending Deletes ──────────────────────────────────────────────────────
+
+export function queueDelete(id: string): void {
+  if (isWeb) return; // web uses fire-and-forget Supabase deletes
+  db!.runSync(
+    'INSERT OR REPLACE INTO pendingDeletes (id, queuedAt) VALUES (?, ?)',
+    id, new Date().toISOString(),
+  );
+}
+
+export function getPendingDeletes(): string[] {
+  if (isWeb) return [];
+  const rows = db!.getAllSync<{ id: string }>('SELECT id FROM pendingDeletes');
+  return rows.map((r) => r.id);
+}
+
+export function clearPendingDelete(id: string): void {
+  if (isWeb) return;
+  db!.runSync('DELETE FROM pendingDeletes WHERE id = ?', id);
+}
+
+export function isPendingDelete(id: string): boolean {
+  if (isWeb) return false;
+  const row = db!.getFirstSync<{ id: string }>('SELECT id FROM pendingDeletes WHERE id = ?', id);
+  return row != null;
 }
 
 // ─── Goals ────────────────────────────────────────────────────────────────
@@ -286,6 +340,7 @@ function rowToShift(row: any): Shift {
   return {
     ...row,
     tipOutByCategory,
+    tipsWithheld: row.tipsWithheld ?? 0,
     synced: row.synced === 1,
     expenses,
   };

@@ -15,6 +15,7 @@ import {
   ActivityIndicator,
   Alert,
   TextInput,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -24,7 +25,7 @@ import { defaultOcrAdapter, ToastReceiptData } from '../../lib/receiptImport';
 import { defaultScheduleAdapter, HotSchedulesData, ParsedShift } from '../../lib/scheduleImport';
 import { useShiftStore } from '../../store/shiftStore';
 import { useAuthStore } from '../../store/authStore';
-import { computeShift } from '../../lib/calculations';
+import { computeShift, fmt12h } from '../../lib/calculations';
 import { TIP_OUT_CATEGORIES } from '../../components/ShiftForm';
 
 export default function ImportShiftScreen() {
@@ -177,47 +178,33 @@ export default function ImportShiftScreen() {
   async function handleSaveShift(shiftIndex: number) {
     if (!scheduleResult?.success) return;
     if (!user?.id) {
-      Alert.alert('Not signed in', 'Sign in to save shifts.');
+      webAlert('Not signed in', 'Sign in to save shifts.');
       return;
     }
     const parsed = scheduleResult.shifts[shiftIndex];
-    if (parsed.date > new Date().toISOString().slice(0, 10)) {
-      Alert.alert('Future Date', `${parsed.date} hasn't happened yet — can't save future shifts.`);
-      return;
-    }
+    // Schedule imports allow future dates — the whole point is upcoming shifts
     try {
       const shift = buildScheduleShift(parsed);
       await saveShift(user.id, shift);
       setSavedShifts((prev) => new Set([...prev, shiftIndex]));
-      Alert.alert('Shift Saved ✓', `${fmtDateShort(parsed.date)} saved.`);
     } catch (e: any) {
-      Alert.alert('Save failed', e.message ?? 'Unknown error');
+      webAlert('Save failed', e.message ?? 'Unknown error');
     }
   }
 
   async function handleSaveAllShifts() {
     if (!scheduleResult?.success) return;
     if (!user?.id) {
-      Alert.alert('Not signed in', 'Sign in to save shifts.');
+      webAlert('Not signed in', 'Sign in to save shifts.');
       return;
     }
-    const today = new Date().toISOString().slice(0, 10);
-    const futureShifts = scheduleResult.shifts.filter((s) => s.date > today);
-    if (futureShifts.length > 0) {
-      Alert.alert('Future Dates Found', `Some shifts are dated in the future and will be skipped: ${futureShifts.map((s) => s.date).join(', ')}.`);
-    }
     try {
-      let savedCount = 0;
       for (let i = 0; i < scheduleResult.shifts.length; i++) {
-        const shift = scheduleResult.shifts[i];
-        if (shift.date > today) continue; // skip future dates
-        await saveShift(user.id, buildScheduleShift(shift));
+        await saveShift(user.id, buildScheduleShift(scheduleResult.shifts[i]));
         setSavedShifts((prev) => new Set([...prev, i]));
-        savedCount++;
       }
-      Alert.alert('All Shifts Saved ✓', `${savedCount} shift${savedCount !== 1 ? 's' : ''} logged.`);
     } catch (e: any) {
-      Alert.alert('Save failed', e.message ?? 'Unknown error');
+      webAlert('Save failed', e.message ?? 'Unknown error');
     }
   }
 
@@ -276,6 +263,7 @@ export default function ImportShiftScreen() {
     const computed = computeShift({
       tipsCash: cashTips,
       tipsCredit: r.tipsCredit ?? 0,
+      tipsWithheld: r.tipsWithheld ?? 0,
       sales: r.sales ?? 0,
       covers: r.covers ?? 0,
       tipOutByCategory,
@@ -289,6 +277,7 @@ export default function ImportShiftScreen() {
       clockOut: r.clockOut ?? '23:00',
       tipsCash: cashTips,
       tipsCredit: r.tipsCredit ?? 0,
+      tipsWithheld: r.tipsWithheld ?? 0,
       sales: r.sales ?? 0,
       covers: r.covers ?? 0,
       tipOutByCategory,
@@ -417,8 +406,8 @@ export default function ImportShiftScreen() {
           <View style={styles.resultCard}>
             <Text style={styles.resultTitle}>Receipt Parsed ✓</Text>
             <ResultRow label="Date" value={cashoutResult.date} />
-            <ResultRow label="Clock In" value={cashoutResult.clockIn} />
-            <ResultRow label="Clock Out" value={cashoutResult.clockOut} />
+            <ResultRow label="Clock In" value={fmt12h(cashoutResult.clockIn ?? '')} />
+            <ResultRow label="Clock Out" value={fmt12h(cashoutResult.clockOut ?? '')} />
             <ResultRow label="Credit Tips" value={cashoutResult.tipsCredit} prefix="$" />
             {/* Cash tips — Toast POS doesn't capture cash, user enters manually */}
             <View style={styles.resultRow}>
@@ -529,7 +518,7 @@ export default function ImportShiftScreen() {
               <View key={i} style={styles.shiftRow}>
                 <View style={styles.shiftInfo}>
                   <Text style={styles.shiftDate}>
-                    {fmtDate(shift.date)} · {shift.clockIn}–{shift.clockOut}
+                    {fmtDate(shift.date)} · {fmt12h(shift.clockIn)}–{fmt12h(shift.clockOut)}
                   </Text>
                   <Text style={styles.shiftPos}>{shift.position}</Text>
                 </View>
@@ -619,6 +608,14 @@ function StaffToggle({
       </View>
     </View>
   );
+}
+
+function webAlert(title: string, message?: string) {
+  if (Platform.OS === 'web') {
+    (window as any).alert(message ? `${title}\n${message}` : title);
+  } else {
+    Alert.alert(title, message);
+  }
 }
 
 function fmtCat(key: string): string {
