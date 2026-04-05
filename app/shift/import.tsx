@@ -30,8 +30,10 @@ import { TIP_OUT_CATEGORIES } from '../../components/ShiftForm';
 
 export default function ImportShiftScreen() {
   const router = useRouter();
-  const { saveShift } = useShiftStore();
+  const { saveShift, jobs } = useShiftStore();
   const { user } = useAuthStore();
+  // Use user's default job, or first available job, for imports that don't have a job set
+  const defaultJobId = jobs[0]?.id ?? '';
 
   const [mode, setMode] = useState<'cashout' | 'schedule'>('cashout');
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
@@ -272,7 +274,7 @@ export default function ImportShiftScreen() {
     });
     return {
       date: r.date ?? new Date().toISOString().slice(0, 10),
-      jobId: '',
+      jobId: defaultJobId,
       clockIn: r.clockIn ?? '17:00',
       clockOut: r.clockOut ?? '23:00',
       tipsCash: cashTips,
@@ -292,6 +294,7 @@ export default function ImportShiftScreen() {
   }
 
   function buildScheduleShift(p: ParsedShift) {
+    // Only record clock-in — actual end time varies, user fills it in after the shift
     const computed = computeShift({
       tipsCash: 0,
       tipsCredit: 0,
@@ -299,13 +302,13 @@ export default function ImportShiftScreen() {
       covers: 0,
       tipOutByCategory: {},
       clockIn: p.clockIn,
-      clockOut: p.clockOut,
+      clockOut: '',
     });
     return {
       date: p.date,
-      jobId: '',
+      jobId: defaultJobId,
       clockIn: p.clockIn,
-      clockOut: p.clockOut,
+      clockOut: '',
       tipsCash: 0,
       tipsCredit: 0,
       sales: 0,
