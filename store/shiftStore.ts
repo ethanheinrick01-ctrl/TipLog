@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Shift, Job, Goal } from '../lib/types';
 import * as db from '../lib/db';
+import { deleteShift as dbDeleteShift, upsertShift as dbUpsertShift, getShift as dbGetShift, getShifts as dbGetShifts } from '../lib/db';
 import { computeShift } from '../lib/calculations';
 import { syncAll } from '../lib/sync';
 import { randomUUID } from 'expo-crypto';
@@ -46,7 +47,7 @@ export const useShiftStore = create<ShiftState>((set, get) => ({
 
   saveShift: (userId, partial) => {
     const now = new Date().toISOString();
-    const existing = partial.id ? db.getShift(partial.id) : null;
+    const existing = partial.id ? dbGetShift(partial.id) : null;
 
     const computed = computeShift({
       ...existing,
@@ -59,13 +60,16 @@ export const useShiftStore = create<ShiftState>((set, get) => ({
       expenses: partial.expenses ?? existing?.expenses ?? [],
     }) as Shift;
 
-    db.upsertShift(computed);
-    set({ shifts: db.getShifts(userId) });
+    dbUpsertShift(computed);
+    set({ shifts: dbGetShifts(userId) });
   },
 
   deleteShift: (id) => {
-    db.deleteShift(id);
-    set((state) => ({ shifts: state.shifts.filter((s) => s.id !== id) }));
+    dbDeleteShift(id);
+    // Re-read shifts after delete — get current user from store state
+    const state = useShiftStore.getState();
+    const userId = state.shifts.find((s) => s.id === id)?.userId ?? '';
+    set({ shifts: dbGetShifts(userId) });
   },
 
   saveJob: (job) => {
