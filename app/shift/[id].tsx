@@ -5,6 +5,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -34,18 +35,21 @@ export default function ShiftDetailScreen() {
   }
 
   function handleDelete() {
-    Alert.alert('Delete Shift', 'Remove this shift permanently?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          deleteShift(shift!.id);
-          // Give React time to re-render before navigating back
-          setTimeout(() => router.back(), 50);
-        },
-      },
-    ]);
+    const doDelete = () => {
+      deleteShift(shift!.id);
+      setTimeout(() => router.back(), 50);
+    };
+
+    if (Platform.OS === 'web') {
+      // Alert.alert uses window.confirm() on web but Chrome suppresses it silently.
+      // Call window.confirm() directly instead.
+      if ((window as any).confirm('Remove this shift permanently?')) doDelete();
+    } else {
+      Alert.alert('Delete Shift', 'Remove this shift permanently?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: doDelete },
+      ]);
+    }
   }
 
   return (

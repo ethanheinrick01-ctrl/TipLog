@@ -8,6 +8,7 @@ import {
   Alert,
   Switch,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useMemo } from 'react';
@@ -185,14 +186,15 @@ export default function SettingsScreen() {
 
   function confirmDeleteJob(job: Job) {
     const count = shifts.filter((s) => s.jobId === job.id).length;
-    Alert.alert(
-      'Delete Job',
-      `Remove "${job.name}"? It has ${count} logged shift${count !== 1 ? 's' : ''}.`,
-      [
+    const msg = `Remove "${job.name}"? It has ${count} logged shift${count !== 1 ? 's' : ''}.`;
+    if (Platform.OS === 'web') {
+      if ((window as any).confirm(msg)) deleteJob(job.id);
+    } else {
+      Alert.alert('Delete Job', msg, [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete', style: 'destructive', onPress: () => deleteJob(job.id) },
-      ],
-    );
+      ]);
+    }
   }
 
   async function handleExport() {
@@ -407,12 +409,16 @@ export default function SettingsScreen() {
         <SectionLabel label="Danger Zone" />
         <View style={styles.card}>
           <TouchableOpacity
-            onPress={() =>
-              Alert.alert('Sign Out', 'Are you sure?', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Sign Out', style: 'destructive', onPress: signOut },
-              ])
-            }
+            onPress={() => {
+              if (Platform.OS === 'web') {
+                if ((window as any).confirm('Sign out?')) signOut();
+              } else {
+                Alert.alert('Sign Out', 'Are you sure?', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Sign Out', style: 'destructive', onPress: signOut },
+                ]);
+              }
+            }}
           >
             <View style={styles.row}>
               <Ionicons name="log-out-outline" size={20} color={Colors.error} style={styles.rowIcon} />
