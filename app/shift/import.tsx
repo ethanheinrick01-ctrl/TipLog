@@ -25,6 +25,7 @@ import { defaultScheduleAdapter, HotSchedulesData, ParsedShift } from '../../lib
 import { useShiftStore } from '../../store/shiftStore';
 import { useAuthStore } from '../../store/authStore';
 import { computeShift } from '../../lib/calculations';
+import { TIP_OUT_CATEGORIES } from '../../components/ShiftForm';
 
 export default function ImportShiftScreen() {
   const router = useRouter();
@@ -41,6 +42,8 @@ export default function ImportShiftScreen() {
   const [cashoutResult, setCashoutResult] = useState<ToastReceiptData | null>(null);
   const [cashTipsOverride, setCashTipsOverride] = useState<string>('');
   const [justSaved, setJustSaved] = useState(false);
+  const [editingTipOuts, setEditingTipOuts] = useState(false);
+  const [tipOutOverrides, setTipOutOverrides] = useState<Record<string, string>>({});
 
   // Schedule result
   const [scheduleResult, setScheduleResult] = useState<HotSchedulesData | null>(null);
@@ -98,6 +101,14 @@ export default function ImportShiftScreen() {
         const data = await defaultOcrAdapter.recognizeImages(selectedImages);
         setCashoutResult(data);
         setCashTipsOverride('');
+        // Initialize tip-out overrides from parsed data
+        if (data.tipOutByCategory) {
+          const init: Record<string, string> = {};
+          Object.entries(data.tipOutByCategory).forEach(([k, v]) => { init[k] = String(v ?? ''); });
+          setTipOutOverrides(init);
+        } else {
+          setTipOutOverrides({});
+        }
         if (!data.success) setError(data.error ?? 'Failed to parse receipt');
       } else {
         const data = await defaultScheduleAdapter.recognizeImages(selectedImages);
@@ -129,7 +140,7 @@ export default function ImportShiftScreen() {
     }
     try {
       setSaving(true);
-      const shift = buildCashoutShift(cashoutResult, parseFloat(cashTipsOverride || '0'));
+      const shift = buildCashoutShift(cashoutResult, parseFloat(cashTipsOverride || '0'), tipOutOverrides);
       await saveShift(user.id, shift);
       setSaving(false);
       setJustSaved(true); // navigate once React settles
@@ -150,7 +161,7 @@ export default function ImportShiftScreen() {
 
   function handleOpenCashoutForm() {
     if (!cashoutResult?.success) return;
-    const shiftData = buildCashoutShift(cashoutResult, parseFloat(cashTipsOverride || '0'));
+    const shiftData = buildCashoutShift(cashoutResult, parseFloat(cashTipsOverride || '0'), tipOutOverrides);
     useShiftStore.getState().setPendingShift(shiftData);
     router.push('/shift/new');
   }
@@ -214,12 +225,19 @@ export default function ImportShiftScreen() {
     setError(null);
     setSavedShifts(new Set());
     setCashTipsOverride('');
+    setEditingTipOuts(false);
+    setTipOutOverrides({});
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-  function buildCashoutShift(r: ToastReceiptData, cashTips = 0) {
-    const tipOutByCategory = r.tipOutByCategory ?? {};
+  function buildCashoutShift(r: ToastReceiptData, cashTips = 0, overrides: Record<string, string> = {}) {
+    // Use user-edited overrides if present, otherwise fall back to OCR values
+    const tipOutByCategory: Record<string, number> = {};
+    Object.entries(overrides).forEach(([k, v]) => { tipOutByCategory[k] = parseFloat(v) || 0; });
+    if (Object.keys(tipOutByCategory).length === 0) {
+      Object.entries(r.tipOutByCategory ?? {}).forEach(([k, v]) => { tipOutByCategory[k] = v ?? 0; });
+    }
     const computed = computeShift({
       tipsCash: cashTips,
       tipsCredit: r.tipsCredit ?? 0,
@@ -385,12 +403,52 @@ export default function ImportShiftScreen() {
             <ResultRow label="3% Tax Withheld" value={cashoutResult.tipsWithheld} prefix="$" />
             <ResultRow label="Total Sales" value={cashoutResult.sales} prefix="$" />
             <ResultRow label="Covers" value={cashoutResult.covers} />
-            {cashoutResult.tipOutByCategory && Object.keys(cashoutResult.tipOutByCategory).length > 0 && (
+            {(Object.keys(tipOutOverrides).length > 0 || editingTipOuts) && (
               <>
-                <Text style={styles.sectionHeader}>Tip-Out Breakdown</Text>
-                {Object.entries(cashoutResult.tipOutByCategory).map(([key, val]) => (
-                  <ResultRow key={key} label={fmtCat(key)} value={val} prefix="$" />
-                ))}
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: Spacing.sm }}>
+                  <Text style={styles.sectionHeader}>Tip-Out Breakdown</Text>
+                  <TouchableOpacity onPress={() => setEditingTipOuts(!editingTipOuts)}>
+                    <Text style={{ color: Colors.accent, fontWeight: '700', fontSize: FontSize.sm }}>
+                      {editingTipOuts ? 'Done' : 'Edit'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                {editingTipOuts ? (
+                  // Editable fields for each category
+                  <>
+                    {TIP_OUT_CATEGORIES.map((cat) => (
+                      <View key={cat.key} style={styles.tipOutRow}>
+                        <Text style={styles.tipOutLabel}>{cat.label}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <Text style={{ color: Colors.textSecondary, fontSize: FontSize.md }}>$</Text>
+                          <TextInput
+                            style={styles.tipOutInput}
+                            placeholder="0"
+                            placeholderTextColor={Colors.textMuted}
+                            keyboardType="decimal-pad"
+                            value={tipOutOverrides[cat.key] ?? ''}
+                            onChangeText={(v) => setTipOutOverrides((prev) => ({ ...prev, [cat.key]: v }))}
+                          />
+                        </View>
+                      </View>
+                    ))}
+                  </>
+                ) : (
+                  // Read-only display from overrides
+                  <>
+                    {Object.entries(tipOutOverrides).map(([key, val]) => {
+                      const num = parseFloat(val) || 0;
+                      if (num === 0) return null;
+                      return <ResultRow key={key} label={fmtCat(key)} value={num} prefix="$" />;
+                    })}
+                  </>
+                )}
+                <ResultRow
+                  label="Total Tip Out"
+                  value={Object.values(tipOutOverrides).reduce((s, v) => s + (parseFloat(v) || 0), 0)}
+                  prefix="$"
+                  bold
+                />
               </>
             )}
             <View style={styles.resultActions}>
@@ -463,16 +521,18 @@ function ResultRow({
   label,
   value,
   prefix = '',
+  bold,
 }: {
   label: string;
   value: number | string | undefined;
   prefix?: string;
+  bold?: boolean;
 }) {
   if (value === null || value === undefined) return null;
   return (
     <View style={styles.resultRow}>
-      <Text style={styles.resultLabel}>{label}</Text>
-      <Text style={styles.resultValue}>
+      <Text style={[styles.resultLabel, bold && { fontWeight: '700' }]}>{label}</Text>
+      <Text style={[styles.resultValue, bold && { fontWeight: '700' }]}>
         {prefix}{typeof value === 'number' ? value.toFixed(2) : value}
       </Text>
     </View>
@@ -550,6 +610,21 @@ const styles = StyleSheet.create({
   resultSub: { fontSize: FontSize.sm, color: Colors.textSecondary, marginBottom: Spacing.sm },
   sectionHeader: { fontSize: FontSize.xs, fontWeight: '700', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginTop: Spacing.sm, marginBottom: Spacing.xs },
   resultRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 },
+  tipOutRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6, paddingHorizontal: Spacing.xs },
+  tipOutLabel: { fontSize: FontSize.md, color: Colors.textSecondary, flex: 1 },
+  tipOutInput: {
+    backgroundColor: Colors.card,
+    borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    color: Colors.textPrimary,
+    fontSize: FontSize.md,
+    fontWeight: '600',
+    minWidth: 72,
+    textAlign: 'right',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
   cashTipsInput: {
     backgroundColor: Colors.card,
     borderRadius: Radius.sm,
