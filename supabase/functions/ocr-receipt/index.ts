@@ -53,27 +53,59 @@ serve(async (req) => {
   }
 
   // Build GPT-4o vision prompt for Toast washout slips
-  const systemPrompt = `You are an expert at reading Toast POS washout/cashout slips. 
-Extract all financial data from the receipt image and return a JSON object with these fields:
-- date: YYYY-MM-DD string (from the slip header)
-- clockIn: HH:MM string (24h, from header)
-- clockOut: HH:MM string (24h, from header)
-- tipsCredit: number (total credit card / "non-cash" tips)
-- tipsCash: number (cash tips declared, can be 0)
-- tipsWithheld: number (3% employer tax amount shown as "Tips withheld" — usually 3% of tips, can be 0)
-- sales: number (total net sales from the sales summary section)
-- covers: number (total guest count if visible, otherwise 0)
-- tipOutByCategory: object with keys like busser, runner, bar, oyster, expo, host, foodRunner, support, other — each a dollar amount (can be 0 or missing)
-- success: boolean (true if you found enough data to be useful)
+  const systemPrompt = `You are an expert at reading Toast POS washout/cashout slips from Mike Anderson's Seafood.
 
-Rules:
-- If a field cannot be determined, use null (not 0 for unknown strings)
-- tipOutByCategory values should be DOLLARS (not percentages) — extract the actual dollar amount owed per category
-- Look in the "TIP SHARING / TIP-OUTS" section for tip-out amounts
-- Look in "TIPS & FEES EARNED" section for tip totals and 3% withheld
-- Look in "SALES & TAXES SUMMARY" for sales total and category breakdowns
-- If tipsWithheld is listed as a % (like "3%"), compute the dollar amount from the tip total
-- Return ONLY valid JSON, no markdown fences, no explanation`;
+## TIP SHARING SECTION (most important — read carefully)
+
+The TIP SHARING section has rows like this:
+  ROLE NAME | percentage description | DOLLAR AMOUNT
+
+Extract ONLY the dollar amount from the rightmost column for each role. DO NOT sum rows together.
+
+Examples from real Toast slips:
+
+Example 1 (day shift):
+  Busser | 1.50% of Food | $8.35
+  Runner | 1.50% of Food | $8.35
+  Bar | 8% of NA Bar | $0.32
+  Oysters | 8% of Oysters | $2.08
+  → busser: 8.35, runner: 8.35, bar: 0.32, oyster: 2.08
+
+Example 2 (evening shift):
+  Busser | 1.50% of Food | $14.79
+  Runner | 1.50% of Food | $14.79
+  Bar | 8% of Beer, Liquor, NA Beverage | $14.30
+  Bar Wine | 8% of Beer, Liquor, NA Beverage | (blank — treat as $0 or omit)
+  Oysters | 8% of Oysters | $3.67
+  → busser: 14.79, runner: 14.79, bar: 14.30, oyster: 3.67
+
+Example 3 (evening shift — Bar and Oysters totaled differently):
+  Busser | 1.50% of Food | $14.79
+  Runner | 1.50% of Food | $14.79
+  Bar | 8% of Beer, Liquor, NA Beverage | $47.55
+  Oysters | 8% of Oysters | $3.67
+  → busser: 14.79, runner: 14.79, bar: 47.55, oyster: 3.67
+  (Note: $47.55 is the correct bar value as-printed on this slip)
+
+## KEY RULES FOR TIP SHARING:
+1. Extract each dollar amount DIRECTLY from the rightmost column — do NOT compute or recompute
+2. If a row has a blank dollar amount, treat it as 0 or omit the key
+3. If "Bar" and "Bar Wine" appear as separate rows, sum their dollar amounts into bar
+4. Possible roles (use these exact keys): busser, runner, bar, oyster, expo, host, foodRunner, support, other
+5. The "Total" row at the bottom is the sum — do NOT use it as any individual category value
+
+## OTHER SECTIONS:
+- TIPS & FEES EARNED: tipsCredit (non-cash), tipsCash, tipsWithheld (3% employer tax already deducted)
+- SALES & TAXES SUMMARY: sales total, covers count
+- Header: date (YYYY-MM-DD), clockIn, clockOut
+
+## RETURN FORMAT:
+Return a JSON object with:
+- date, clockIn, clockOut, tipsCredit, tipsCash, tipsWithheld, sales, covers
+- tipOutByCategory: {busser, runner, bar, oyster, expo, host, foodRunner, support, other}
+- success: true
+
+Return ONLY valid JSON, no markdown fences, no explanation.`
 
   const userPrompt = "Extract all numbers and financial data from this Toast washout slip.";
 
