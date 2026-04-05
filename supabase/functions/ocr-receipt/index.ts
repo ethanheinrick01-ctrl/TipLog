@@ -133,8 +133,22 @@ serve(async (req) => {
     });
   }
 
+  // ── Dynamic date context ────────────────────────────────────────────────
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  const todayISO = `${currentYear}-${mm}-${dd}`;
+
   // Build GPT-4o vision prompt for Toast washout slips
   const systemPrompt = `You are an expert at reading Toast POS washout/cashout slips from Mike Anderson's Seafood.
+
+## DATE RULES (critical):
+- Today is ${todayISO}. The current year is ${currentYear}.
+- Toast slips show dates like "4/4/2026, 2:53 PM" or "04/04/2026"
+- ALWAYS use ${currentYear} as the year unless the slip clearly shows a different year
+- Return date as YYYY-MM-DD — e.g. "4/4/2026" → "${currentYear}-04-04"
+- NEVER return a year before 2025 — if you're unsure, use ${currentYear}
 
 ## TIP SHARING SECTION (most important — read carefully)
 
