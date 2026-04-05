@@ -118,6 +118,10 @@ export default function ImportShiftScreen() {
       Alert.alert('Not signed in', 'Sign in to save shifts.');
       return;
     }
+    if (cashoutResult.date && cashoutResult.date > new Date().toISOString().slice(0, 10)) {
+      Alert.alert('Future Date', "You can't log shifts for dates that haven't happened yet.");
+      return;
+    }
     try {
       const shift = buildCashoutShift(cashoutResult);
       await saveShift(user.id, shift);
@@ -142,8 +146,12 @@ export default function ImportShiftScreen() {
       Alert.alert('Not signed in', 'Sign in to save shifts.');
       return;
     }
+    const parsed = scheduleResult.shifts[shiftIndex];
+    if (parsed.date > new Date().toISOString().slice(0, 10)) {
+      Alert.alert('Future Date', `${parsed.date} hasn't happened yet — can't save future shifts.`);
+      return;
+    }
     try {
-      const parsed = scheduleResult.shifts[shiftIndex];
       const shift = buildScheduleShift(parsed);
       await saveShift(user.id, shift);
       setSavedShifts((prev) => new Set([...prev, shiftIndex]));
@@ -159,12 +167,21 @@ export default function ImportShiftScreen() {
       Alert.alert('Not signed in', 'Sign in to save shifts.');
       return;
     }
+    const today = new Date().toISOString().slice(0, 10);
+    const futureShifts = scheduleResult.shifts.filter((s) => s.date > today);
+    if (futureShifts.length > 0) {
+      Alert.alert('Future Dates Found', `Some shifts are dated in the future and will be skipped: ${futureShifts.map((s) => s.date).join(', ')}.`);
+    }
     try {
+      let savedCount = 0;
       for (let i = 0; i < scheduleResult.shifts.length; i++) {
-        await saveShift(user.id, buildScheduleShift(scheduleResult.shifts[i]));
+        const shift = scheduleResult.shifts[i];
+        if (shift.date > today) continue; // skip future dates
+        await saveShift(user.id, buildScheduleShift(shift));
         setSavedShifts((prev) => new Set([...prev, i]));
+        savedCount++;
       }
-      Alert.alert('All Shifts Saved ✓', `${scheduleResult.shifts.length} shifts logged.`);
+      Alert.alert('All Shifts Saved ✓', `${savedCount} shift${savedCount !== 1 ? 's' : ''} logged.`);
     } catch (e: any) {
       Alert.alert('Save failed', e.message ?? 'Unknown error');
     }

@@ -126,6 +126,11 @@ export function ShiftForm({ existing, initialDate }: Props) {
       Alert.alert('No Job', 'Add a job in Settings first.');
       return;
     }
+    // Block future dates — nothing is certain yet
+    if (date > new Date().toISOString().slice(0, 10)) {
+      Alert.alert('Future Date', "You can't log shifts for dates that haven't happened yet.");
+      return;
+    }
 
     try {
       await saveShift(user.id, {
