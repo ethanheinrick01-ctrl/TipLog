@@ -1,4 +1,75 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+
+/** Normalise a GPT role string to a known tipOutByCategory key. */
+function normaliseRole(role: string): string {
+  const r = role.toLowerCase();
+  if (r.includes('busser')) return 'busser';
+  if (r.includes('runner')) return 'runner';
+  if (r.includes('bar') && !r.includes('wine')) return 'bar';
+  if (r.includes('oyster')) return 'oyster';
+  if (r.includes('expo')) return 'expo';
+  if (r.includes('host')) return 'host';
+  if (r.includes('food')) return 'foodRunner';
+  if (r.includes('support')) return 'support';
+  return 'other';
+}
+
+/** Convert 12h time ("10:30 AM", "2:48 PM") to 24h ("10:30", "14:48"). */
+function to24h(time: string): string {
+  if (!time) return time;
+  const m = time.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!m) return time;
+  let h = parseInt(m[1]), min = m[2];
+  if (m[3].toUpperCase() === 'PM' && h !== 12) h += 12;
+  if (m[3].toUpperCase() === 'AM' && h === 12) h = 0;
+  return `${String(h).padStart(2, '0')}:${min}`;
+}
+
+/**
+ * Map GPT's output schema to the ToastReceiptData interface.
+ * GPT likes returning its own schema — this ensures the app always gets
+ * the fields it expects regardless of what GPT outputs.
+ */
+function mapGptToReceiptData(gpt: any): ToastReceiptData {
+  // ── tipOutByCategory ──────────────────────────────────────────
+  const tipOut: Record<string, number> = {
+    busser: 0, runner: 0, bar: 0, oyster: 0,
+    expo: 0, host: 0, foodRunner: 0, support: 0, other: 0,
+  };
+
+  const entries = Array.isArray(gpt.tipSharingEntries) ? gpt.tipSharingEntries : [];
+  for (const entry of entries) {
+    const key = normaliseRole(entry.role ?? '');
+    const amt = parseFloat(entry.amount);
+    if (!isNaN(amt)) tipOut[key] = (tipOut[key] ?? 0) + amt;
+  }
+
+  // ── Covers: sum all quantities in categoryBreakdown ────────────
+  let covers = 0;
+  const cat = gpt.categoryBreakdown ?? {};
+  for (const val of Object.values(cat)) {
+    if (typeof val === 'number') covers += val;
+  }
+
+  // ── Field mapping (handles multiple GPT schema variants) ───────
+  // Trust raw GPT fields; fall back to 0 only when truly absent
+  const tipsCredit = gpt.tipsCredit ?? gpt.creditTips ?? 0;
+  const tipsCash   = gpt.tipsCash   ?? gpt.cashTipsDeclared ?? 0;
+  const sales      = gpt.sales      ?? gpt.totalNetSales   ?? 0;
+
+  return {
+    date:        gpt.shiftDate ?? gpt.date,
+    clockIn:     to24h(gpt.clockIn ?? ''),
+    clockOut:    to24h(gpt.clockOut ?? ''),
+    tipsCredit:  parseFloat(tipsCredit) || 0,
+    tipsCash:    parseFloat(tipsCash)   || 0,
+    tipsWithheld: parseFloat(gpt.tipsWithheld) || 0,
+    sales:       parseFloat(sales)      || 0,
+    covers,
+    tipOutByCategory: tipOut,
+    success: true,
+  };
+}
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -143,11 +214,11 @@ Return ONLY valid JSON, no markdown fences, no explanation.`
     const data = await response.json();
     const rawText = data.choices?.[0]?.message?.content ?? "";
 
-    let parsed: ToastReceiptData;
+    let gptResult: any;
     try {
       // Strip any markdown code fences
       const cleaned = rawText.replace(/```json\s*/i, "").replace(/```\s*/g, "").trim();
-      parsed = JSON.parse(cleaned);
+      gptResult = JSON.parse(cleaned);
     } catch {
       return new Response(
         JSON.stringify({ success: false, error: "Failed to parse GPT response", rawText }),
@@ -155,7 +226,10 @@ Return ONLY valid JSON, no markdown fences, no explanation.`
       );
     }
 
-    return new Response(JSON.stringify({ ...parsed, success: true }), {
+    // Map GPT's output schema to ToastReceiptData
+    const parsed = mapGptToReceiptData(gptResult);
+
+    return new Response(JSON.stringify({ ...parsed, success: true, rawText }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

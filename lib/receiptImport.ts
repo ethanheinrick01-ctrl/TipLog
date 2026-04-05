@@ -48,9 +48,10 @@ export class SupabaseOcrAdapter implements OcrAdapter {
     // Otherwise resolve file:// / content:// via fetch on native.
     const base64Images = await Promise.all(
       imageUris.map(async (uri) => {
-        // Not a URI — assume raw base64 from picker
+        // Not a URI — assume raw base64 or data: URI from picker (web)
         if (!uri.startsWith('file://') && !uri.startsWith('content://') && !uri.startsWith('ph://')) {
-          return uri;
+          // Strip data URI prefix if present (web sometimes returns data: URIs instead of raw base64)
+          return uri.startsWith('data:') ? uri.split(',')[1] : uri;
         }
         // Native URI — fetch and convert
         const res = await fetch(uri);

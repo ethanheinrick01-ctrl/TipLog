@@ -48,7 +48,8 @@ export class HotSchedulesOcrAdapter implements ScheduleAdapter {
           !uri.startsWith('content://') &&
           !uri.startsWith('ph://')
         ) {
-          return uri;
+          // Strip data URI prefix if present (web sometimes returns data: URIs instead of raw base64)
+          return uri.startsWith('data:') ? uri.split(',')[1] : uri;
         }
         const res = await fetch(uri);
         const blob = await res.blob();

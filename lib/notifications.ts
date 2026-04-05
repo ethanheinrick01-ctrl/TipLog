@@ -1,17 +1,27 @@
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+// expo-notifications is not supported on web — guard every call.
+const isWeb = Platform.OS === 'web';
+
+// Only set the notification handler on native platforms where the module works.
+if (!isWeb) {
+  // Dynamic require so the module is never evaluated on web.
+  const Notifications = require('expo-notifications');
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+}
 
 export async function requestNotificationPermission(): Promise<boolean> {
+  if (isWeb) return false;
+
+  const Notifications = require('expo-notifications');
   const { status: existing } = await Notifications.getPermissionsAsync();
   if (existing === 'granted') return true;
 
@@ -20,12 +30,15 @@ export async function requestNotificationPermission(): Promise<boolean> {
 }
 
 export async function scheduleShiftReminder(hourStr: string): Promise<void> {
+  if (isWeb) return;
+
   // Cancel any existing reminder first
   await cancelShiftReminder();
 
   const [hour, minute] = hourStr.split(':').map(Number);
   if (isNaN(hour) || isNaN(minute)) return;
 
+  const Notifications = require('expo-notifications');
   await Notifications.scheduleNotificationAsync({
     identifier: 'shift-reminder',
     content: {
@@ -42,9 +55,15 @@ export async function scheduleShiftReminder(hourStr: string): Promise<void> {
 }
 
 export async function cancelShiftReminder(): Promise<void> {
+  if (isWeb) return;
+
+  const Notifications = require('expo-notifications');
   await Notifications.cancelScheduledNotificationAsync('shift-reminder');
 }
 
 export async function getScheduledReminders() {
+  if (isWeb) return [];
+
+  const Notifications = require('expo-notifications');
   return Notifications.getAllScheduledNotificationsAsync();
 }

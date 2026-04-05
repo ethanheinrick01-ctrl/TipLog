@@ -1,8 +1,9 @@
-import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
+import { Platform } from 'react-native';
 import { format, parseISO } from 'date-fns';
 import { Shift, Job } from './types';
 import { fmt } from './calculations';
+
+const isWeb = Platform.OS === 'web';
 
 const CSV_HEADERS = [
   'Date',
@@ -79,6 +80,25 @@ export async function exportShiftsToCSV(shifts: Shift[], jobs: Job[]): Promise<v
 
   const csv = [CSV_HEADERS.join(','), ...rows].join('\n');
   const fileName = `tiplog_export_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+
+  // ── Web: trigger a browser download via a data URI anchor ──────────────────
+  if (isWeb) {
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    return;
+  }
+
+  // ── Native: write to cache dir then share ──────────────────────────────────
+  const FileSystem = require('expo-file-system/legacy');
+  const Sharing = require('expo-sharing');
+
   const fileUri = FileSystem.cacheDirectory + fileName;
 
   await FileSystem.writeAsStringAsync(fileUri, csv, {
