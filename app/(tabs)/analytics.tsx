@@ -46,8 +46,10 @@ export default function AnalyticsScreen() {
   const [period, setPeriod] = useState<PTab>('payperiod');
 
   const now = new Date();
-  const currentPP = useMemo(() => getPayPeriodForDate(anchor, now), [anchor]);
-  const prevPP = useMemo(() => getPreviousPayPeriod(anchor, now), [anchor]);
+  // todayStr is a stable primitive dep — changes at midnight, triggering pay period recomputation
+  const todayStr = now.toISOString().slice(0, 10);
+  const currentPP = useMemo(() => getPayPeriodForDate(anchor, new Date()), [anchor, todayStr]);
+  const prevPP = useMemo(() => getPreviousPayPeriod(anchor, new Date()), [anchor, todayStr]);
 
   const filtered = useMemo(() => {
     let start: Date, end: Date;
@@ -91,7 +93,7 @@ export default function AnalyticsScreen() {
         .reduce((sum, s) => sum + s.grossEarnings, 0);
       return { label: format(mo, 'MMM'), value: total };
     });
-  }, [shifts]);
+  }, [shifts, todayStr]);
 
   const maxBar = Math.max(...barData.map((b) => b.value), 1);
 
