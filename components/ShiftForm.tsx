@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -121,16 +122,29 @@ export function ShiftForm({ existing, initialDate }: Props) {
 
   async function handleSave() {
     if (!user?.id) {
-      Alert.alert('Not signed in', 'Sign in to save shifts.');
+      if (Platform.OS === 'web') {
+        (window as any).alert('Sign in to save shifts.');
+      } else {
+        Alert.alert('Not signed in', 'Sign in to save shifts.');
+      }
       return;
     }
     if (!jobId) {
-      Alert.alert('No Job', 'Add a job in Settings first.');
+      if (Platform.OS === 'web') {
+        (window as any).alert('Add a job in Settings first, then come back to save this shift.');
+      } else {
+        Alert.alert('No Job', 'Add a job in Settings first.');
+      }
       return;
     }
     // Block future dates — nothing is certain yet
-    if (date > new Date().toISOString().slice(0, 10)) {
-      Alert.alert('Future Date', "You can't log shifts for dates that haven't happened yet.");
+    const todayLocal = (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`; })();
+    if (date > todayLocal) {
+      if (Platform.OS === 'web') {
+        (window as any).alert("You can't log shifts for dates that haven't happened yet.");
+      } else {
+        Alert.alert('Future Date', "You can't log shifts for dates that haven't happened yet.");
+      }
       return;
     }
 
@@ -156,7 +170,11 @@ export function ShiftForm({ existing, initialDate }: Props) {
       });
       router.back();
     } catch (e: any) {
-      Alert.alert('Save failed', e.message ?? 'Unknown error');
+      if (Platform.OS === 'web') {
+        (window as any).alert('Save failed: ' + (e.message ?? 'Unknown error'));
+      } else {
+        Alert.alert('Save failed', e.message ?? 'Unknown error');
+      }
     }
   }
 
@@ -196,9 +214,11 @@ export function ShiftForm({ existing, initialDate }: Props) {
             </TouchableOpacity>
           ))}
           {jobs.length === 0 && (
-            <Text style={{ color: Colors.textMuted, fontSize: FontSize.sm, paddingVertical: 8 }}>
-              Add a job in Settings first
-            </Text>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/settings')}>
+              <Text style={{ color: Colors.accent, fontSize: FontSize.sm, paddingVertical: 8 }}>
+                No jobs yet — tap to add one in Settings
+              </Text>
+            </TouchableOpacity>
           )}
         </ScrollView>
 
