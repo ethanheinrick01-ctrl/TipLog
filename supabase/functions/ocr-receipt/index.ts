@@ -37,6 +37,16 @@ function mapGptToReceiptData(gpt: any): ToastReceiptData {
     expo: 0, host: 0, foodRunner: 0, support: 0, other: 0,
   };
 
+  // Format 1: direct tipOutByCategory object — what the prompt actually asks GPT to return
+  if (gpt.tipOutByCategory && typeof gpt.tipOutByCategory === 'object' && !Array.isArray(gpt.tipOutByCategory)) {
+    for (const [role, val] of Object.entries(gpt.tipOutByCategory)) {
+      const key = normaliseRole(role);
+      const amt = parseFloat(String(val));
+      if (!isNaN(amt)) tipOut[key] = (tipOut[key] ?? 0) + amt;
+    }
+  }
+
+  // Format 2: tipSharingEntries array (legacy / alternate GPT schema)
   const entries = Array.isArray(gpt.tipSharingEntries) ? gpt.tipSharingEntries : [];
   for (const entry of entries) {
     const key = normaliseRole(entry.role ?? '');
