@@ -34,6 +34,7 @@ export default function ImportShiftScreen() {
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   // Cashout result
   const [cashoutResult, setCashoutResult] = useState<ToastReceiptData | null>(null);
@@ -123,10 +124,13 @@ export default function ImportShiftScreen() {
       return;
     }
     try {
+      setSaving(true);
       const shift = buildCashoutShift(cashoutResult);
       await saveShift(user.id, shift);
+      setSaving(false);
       Alert.alert('Shift Saved ✓', 'Your shift has been logged.', [{ text: 'OK', onPress: () => router.back() }]);
     } catch (e: any) {
+      setSaving(false);
       Alert.alert('Save failed', e.message ?? 'Unknown error');
     }
   }
@@ -362,8 +366,8 @@ export default function ImportShiftScreen() {
               </>
             )}
             <View style={styles.resultActions}>
-              <TouchableOpacity style={styles.saveBtn} onPress={handleSaveCashout}>
-                <Text style={styles.saveBtnText}>Save Shift</Text>
+              <TouchableOpacity style={styles.saveBtn} onPress={handleSaveCashout} disabled={saving}>
+                {saving ? <ActivityIndicator color={Colors.bg} size="small" /> : <Text style={styles.saveBtnText}>Save Shift</Text>}
               </TouchableOpacity>
               <TouchableOpacity style={styles.editBtn} onPress={handleOpenCashoutForm}>
                 <Text style={styles.editBtnText}>Edit Before Saving</Text>
