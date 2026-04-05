@@ -46,8 +46,8 @@ export default function AnalyticsScreen() {
   const [period, setPeriod] = useState<PTab>('payperiod');
 
   const now = new Date();
-  // todayStr is a stable primitive dep — changes at midnight, triggering pay period recomputation
-  const todayStr = now.toISOString().slice(0, 10);
+  // todayStr uses local date components — toISOString() would flip at 7 PM CST (UTC-5)
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const currentPP = useMemo(() => getPayPeriodForDate(anchor, new Date()), [anchor, todayStr]);
   const prevPP = useMemo(() => getPreviousPayPeriod(anchor, new Date()), [anchor, todayStr]);
 
