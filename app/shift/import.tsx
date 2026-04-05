@@ -4,7 +4,7 @@
  * Unified import screen — photograph Toast washout slips or HotSchedules
  * schedules, run GPT-4o OCR, review parsed results, save shifts.
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -40,6 +40,7 @@ export default function ImportShiftScreen() {
   // Cashout result
   const [cashoutResult, setCashoutResult] = useState<ToastReceiptData | null>(null);
   const [cashTipsOverride, setCashTipsOverride] = useState<string>('');
+  const [justSaved, setJustSaved] = useState(false);
 
   // Schedule result
   const [scheduleResult, setScheduleResult] = useState<HotSchedulesData | null>(null);
@@ -131,12 +132,21 @@ export default function ImportShiftScreen() {
       const shift = buildCashoutShift(cashoutResult, parseFloat(cashTipsOverride || '0'));
       await saveShift(user.id, shift);
       setSaving(false);
-      Alert.alert('Shift Saved ✓', 'Your shift has been logged.', [{ text: 'OK', onPress: () => router.back() }]);
+      setJustSaved(true); // navigate once React settles
     } catch (e: any) {
       setSaving(false);
-      Alert.alert('Save failed', e.message ?? 'Unknown error');
+      const msg = e instanceof Error ? e.message : (typeof e === 'string' ? e : 'Unknown error');
+      Alert.alert('Save failed', msg);
     }
   }
+
+  // Navigate after save settles
+  useEffect(() => {
+    if (justSaved) {
+      setJustSaved(false);
+      router.back();
+    }
+  }, [justSaved]);
 
   function handleOpenCashoutForm() {
     if (!cashoutResult?.success) return;
