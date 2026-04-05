@@ -5,11 +5,11 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
   Switch,
   ActivityIndicator,
   Platform,
 } from 'react-native';
+import { showAlert, showConfirm } from '../../lib/webAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
@@ -88,14 +88,14 @@ export default function SettingsScreen() {
       const d = parseISO(anchorInput);
       if (isNaN(d.getTime())) throw new Error();
       if (d.getDay() !== 4) {
-        Alert.alert(
+        showAlert(
           'Must be a Thursday',
           `${format(d, 'EEEE MMM d')} is a ${format(d, 'EEEE')}. Pay periods start on Thursdays — pick the Thursday that started your last pay period.`,
         );
         return;
       }
     } catch {
-      Alert.alert('Invalid Date', 'Enter a date in YYYY-MM-DD format.');
+      showAlert('Invalid Date', 'Enter a date in YYYY-MM-DD format.');
       return;
     }
     setAnchorSaving(true);
@@ -112,10 +112,7 @@ export default function SettingsScreen() {
     if (val) {
       const granted = await requestNotificationPermission();
       if (!granted) {
-        Alert.alert(
-          'Permission Required',
-          'Allow notifications in Settings to enable shift reminders.',
-        );
+        showAlert('Permission Required', 'Allow notifications in Settings to enable shift reminders.');
         return;
       }
     }
@@ -187,14 +184,7 @@ export default function SettingsScreen() {
   function confirmDeleteJob(job: Job) {
     const count = shifts.filter((s) => s.jobId === job.id).length;
     const msg = `Remove "${job.name}"? It has ${count} logged shift${count !== 1 ? 's' : ''}.`;
-    if (Platform.OS === 'web') {
-      if ((window as any).confirm(msg)) deleteJob(job.id);
-    } else {
-      Alert.alert('Delete Job', msg, [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => deleteJob(job.id) },
-      ]);
-    }
+    showConfirm('Delete Job', msg, () => deleteJob(job.id), 'Delete');
   }
 
   async function handleExport() {
@@ -202,7 +192,7 @@ export default function SettingsScreen() {
     try {
       await exportShiftsToCSV(shifts, jobs);
     } catch (e: any) {
-      Alert.alert('Export Failed', e.message ?? 'Unknown error');
+      showAlert('Export Failed', e.message ?? 'Unknown error');
     } finally {
       setExporting(false);
     }
@@ -410,14 +400,7 @@ export default function SettingsScreen() {
         <View style={styles.card}>
           <TouchableOpacity
             onPress={() => {
-              if (Platform.OS === 'web') {
-                if ((window as any).confirm('Sign out?')) signOut();
-              } else {
-                Alert.alert('Sign Out', 'Are you sure?', [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Sign Out', style: 'destructive', onPress: signOut },
-                ]);
-              }
+              showConfirm('Sign Out', 'Are you sure?', signOut, 'Sign Out');
             }}
           >
             <View style={styles.row}>

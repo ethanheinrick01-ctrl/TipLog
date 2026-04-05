@@ -60,7 +60,7 @@ export default function ImportShiftScreen() {
   async function pickImages() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Grant photo access in Settings.');
+      webAlert('Permission needed', 'Grant photo access in Settings.');
       return;
     }
     const res = await ImagePicker.launchImageLibraryAsync({
@@ -82,7 +82,7 @@ export default function ImportShiftScreen() {
   async function snapPhoto() {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Grant camera access.');
+      webAlert('Permission needed', 'Grant camera access.');
       return;
     }
     const res = await ImagePicker.launchCameraAsync({ quality: 0.8, base64: true });
@@ -136,15 +136,15 @@ export default function ImportShiftScreen() {
 
   async function handleSaveCashout() {
     if (!cashoutResult?.success) {
-      Alert.alert('Nothing to save', 'Process a receipt first.');
+      webAlert('Nothing to save', 'Process a receipt first.');
       return;
     }
     if (!user?.id) {
-      Alert.alert('Not signed in', 'Sign in to save shifts.');
+      webAlert('Not signed in', 'Sign in to save shifts.');
       return;
     }
     if (cashoutResult.date && cashoutResult.date > new Date().toISOString().slice(0, 10)) {
-      Alert.alert('Future Date', "You can't log shifts for dates that haven't happened yet.");
+      webAlert('Future Date', "You can't log shifts for dates that haven't happened yet.");
       return;
     }
     try {
@@ -156,7 +156,7 @@ export default function ImportShiftScreen() {
     } catch (e: any) {
       setSaving(false);
       const msg = e instanceof Error ? e.message : (typeof e === 'string' ? e : 'Unknown error');
-      Alert.alert('Save failed', msg);
+      webAlert('Save failed', msg);
     }
   }
 

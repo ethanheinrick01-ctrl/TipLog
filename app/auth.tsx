@@ -6,9 +6,9 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
+import { showAlert } from '../lib/webAlert';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -36,7 +36,7 @@ export default function AuthScreen() {
     setLoading(false);
 
     if (err) {
-      Alert.alert('Error', err);
+      showAlert('Error', err);
     } else {
       router.replace('/(tabs)');
     }

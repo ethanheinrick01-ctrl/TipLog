@@ -5,8 +5,8 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
 } from 'react-native';
+import { showConfirm } from '../../lib/webAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useMemo } from 'react';
 import {
@@ -189,10 +189,7 @@ export default function GoalsScreen() {
                 )}
                 <TouchableOpacity
                   onPress={() =>
-                    Alert.alert('Delete Goal', 'Remove this goal?', [
-                      { text: 'Cancel', style: 'cancel' },
-                      { text: 'Delete', style: 'destructive', onPress: () => deleteGoal(goal.id) },
-                    ])
+                    showConfirm('Delete Goal', 'Remove this goal?', () => deleteGoal(goal.id), 'Delete')
                   }
                   style={{ marginLeft: Spacing.sm }}
                 >

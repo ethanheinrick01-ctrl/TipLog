@@ -10,9 +10,8 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Alert,
-  Platform,
 } from 'react-native';
+import { showAlert } from '../lib/webAlert';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -122,29 +121,17 @@ export function ShiftForm({ existing, initialDate }: Props) {
 
   async function handleSave() {
     if (!user?.id) {
-      if (Platform.OS === 'web') {
-        (window as any).alert('Sign in to save shifts.');
-      } else {
-        Alert.alert('Not signed in', 'Sign in to save shifts.');
-      }
+      showAlert('Not signed in', 'Sign in to save shifts.');
       return;
     }
     if (!jobId) {
-      if (Platform.OS === 'web') {
-        (window as any).alert('Add a job in Settings first, then come back to save this shift.');
-      } else {
-        Alert.alert('No Job', 'Add a job in Settings first.');
-      }
+      showAlert('No Job', 'Add a job in Settings first, then come back to save this shift.');
       return;
     }
     // Block future dates — nothing is certain yet
     const todayLocal = (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`; })();
     if (date > todayLocal) {
-      if (Platform.OS === 'web') {
-        (window as any).alert("You can't log shifts for dates that haven't happened yet.");
-      } else {
-        Alert.alert('Future Date', "You can't log shifts for dates that haven't happened yet.");
-      }
+      showAlert('Future Date', "You can't log shifts for dates that haven't happened yet.");
       return;
     }
 
@@ -170,11 +157,7 @@ export function ShiftForm({ existing, initialDate }: Props) {
       });
       router.back();
     } catch (e: any) {
-      if (Platform.OS === 'web') {
-        (window as any).alert('Save failed: ' + (e.message ?? 'Unknown error'));
-      } else {
-        Alert.alert('Save failed', e.message ?? 'Unknown error');
-      }
+      showAlert('Save failed', e.message ?? 'Unknown error');
     }
   }
 
