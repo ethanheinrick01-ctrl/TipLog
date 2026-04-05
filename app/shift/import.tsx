@@ -109,11 +109,22 @@ export default function ImportShiftScreen() {
 
   // ─── Cashout actions ─────────────────────────────────────────────────────────
 
-  function handleSaveCashout() {
-    if (!cashoutResult?.success || !user?.id) return;
-    const shift = buildCashoutShift(cashoutResult);
-    saveShift(user.id, shift);
-    router.back();
+  async function handleSaveCashout() {
+    if (!cashoutResult?.success) {
+      Alert.alert('Nothing to save', 'Process a receipt first.');
+      return;
+    }
+    if (!user?.id) {
+      Alert.alert('Not signed in', 'Sign in to save shifts.');
+      return;
+    }
+    try {
+      const shift = buildCashoutShift(cashoutResult);
+      await saveShift(user.id, shift);
+      router.back();
+    } catch (e: any) {
+      Alert.alert('Save failed', e.message ?? 'Unknown error');
+    }
   }
 
   function handleOpenCashoutForm() {
@@ -125,20 +136,36 @@ export default function ImportShiftScreen() {
 
   // ─── Schedule actions ─────────────────────────────────────────────────────────
 
-  function handleSaveShift(shiftIndex: number) {
-    if (!scheduleResult?.success || !user?.id) return;
-    const parsed = scheduleResult.shifts[shiftIndex];
-    const shift = buildScheduleShift(parsed);
-    saveShift(user.id, shift);
-    setSavedShifts((prev) => new Set([...prev, shiftIndex]));
+  async function handleSaveShift(shiftIndex: number) {
+    if (!scheduleResult?.success) return;
+    if (!user?.id) {
+      Alert.alert('Not signed in', 'Sign in to save shifts.');
+      return;
+    }
+    try {
+      const parsed = scheduleResult.shifts[shiftIndex];
+      const shift = buildScheduleShift(parsed);
+      await saveShift(user.id, shift);
+      setSavedShifts((prev) => new Set([...prev, shiftIndex]));
+    } catch (e: any) {
+      Alert.alert('Save failed', e.message ?? 'Unknown error');
+    }
   }
 
-  function handleSaveAllShifts() {
-    if (!scheduleResult?.success || !user?.id) return;
-    scheduleResult.shifts.forEach((parsed, i) => {
-      saveShift(user.id, buildScheduleShift(parsed));
-      setSavedShifts((prev) => new Set([...prev, i]));
-    });
+  async function handleSaveAllShifts() {
+    if (!scheduleResult?.success) return;
+    if (!user?.id) {
+      Alert.alert('Not signed in', 'Sign in to save shifts.');
+      return;
+    }
+    try {
+      for (let i = 0; i < scheduleResult.shifts.length; i++) {
+        await saveShift(user.id, buildScheduleShift(scheduleResult.shifts[i]));
+        setSavedShifts((prev) => new Set([...prev, i]));
+      }
+    } catch (e: any) {
+      Alert.alert('Save failed', e.message ?? 'Unknown error');
+    }
   }
 
   // ─── Reset on mode change ───────────────────────────────────────────────────
@@ -251,9 +278,11 @@ export default function ImportShiftScreen() {
         {/* Image previews */}
         {selectedImages.length > 0 && !hasResult && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.previewScroll}>
-            {selectedImages.map((uri, i) => (
-              <Image key={i} source={{ uri }} style={styles.preview} />
-            ))}
+            {selectedImages.map((uri, i) => {
+              // base64 strings need data URI prefix to render as images
+              const src = uri.startsWith('data:') ? uri : `data:image/jpeg;base64,${uri}`;
+              return <Image key={i} source={{ uri: src }} style={styles.preview} />;
+            })}
           </ScrollView>
         )}
 
