@@ -33,8 +33,9 @@ export const Colors = {
   textSubtle: '#62666d',       // Quaternary — timestamps, disabled
 
   // Status — only for semantic indicators, not decoration
-  success: '#27a644',
+  success: '#4ade80',         // Vibrant Emerald Green (Level 5)
   successEmph: '#10b981',
+  successSubtle: 'rgba(74, 222, 128, 0.1)',
   error: '#FF3B30',
   warning: '#FF9500',
 
