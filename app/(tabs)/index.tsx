@@ -22,17 +22,18 @@ import {
   subMonths,
   parseISO,
   isToday,
-  startOfWeek,
-  endOfWeek,
-  addDays,
-  isSameDay,
   subDays,
   isWithinInterval,
 } from 'date-fns';
 import { Colors, Spacing, Radius, FontSize } from '../../constants/theme';
 import { useShiftStore } from '../../store/shiftStore';
 import { useAuthStore } from '../../store/authStore';
-import { fmt, fmt12h } from '../../lib/calculations';
+import {
+  fmt,
+  fmt12h,
+  getPayPeriodForDate,
+  DEFAULT_PAY_PERIOD_ANCHOR,
+} from '../../lib/calculations';
 import { Shift } from '../../lib/types';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -62,6 +63,11 @@ export default function CalendarScreen() {
       .filter((s) => isSameMonth(parseISO(s.date), currentMonth))
       .reduce((sum, s) => sum + s.grossEarnings, 0);
   }, [shifts, currentMonth]);
+
+  const payPeriod = useMemo(
+    () => getPayPeriodForDate(user?.payPeriodAnchor ?? DEFAULT_PAY_PERIOD_ANCHOR, new Date()),
+    [user?.payPeriodAnchor],
+  );
 
   const firstName = user?.name?.split(' ')[0] || 'User';
   const todayStr = format(new Date(), 'yyyy-MM-dd');
@@ -106,32 +112,30 @@ export default function CalendarScreen() {
   }, [shifts, monthTotal]);
 
   const weeklySummary = useMemo(() => {
-    const now = new Date();
-    const week = { start: startOfWeek(now), end: endOfWeek(now) };
-    const weeklyShifts = shifts.filter(s => isWithinInterval(parseISO(s.date), week));
-    
-    if (weeklyShifts.length === 0) return "You haven't worked this week. Room to push.";
-    
-    const total = weeklyShifts.reduce((sum, s) => sum + s.grossEarnings, 0);
-    const count = weeklyShifts.length;
-    
-    const bestShift = [...weeklyShifts].sort((a,b) => b.grossEarnings - a.grossEarnings)[0];
-    const distNote = weeklyShifts.length > 1 && bestShift.grossEarnings > (total * 0.6)
-      ? `Most of your money came from ${format(parseISO(bestShift.date), 'EEEE')}.`
-      : "";
+    const periodWindow = { start: payPeriod.start, end: payPeriod.end };
+    const periodShifts = shifts.filter((s) => isWithinInterval(parseISO(s.date), periodWindow));
 
-    return `${count} shift${count > 1 ? 's' : ''}, $${Math.round(total)} total. ${distNote || 'Efficient.'}`;
-  }, [shifts]);
+    if (periodShifts.length === 0) return "No worked shifts this pay period yet.";
+
+    const total = periodShifts.reduce((sum, s) => sum + s.grossEarnings, 0);
+    const count = periodShifts.length;
+
+    const bestShift = [...periodShifts].sort((a, b) => b.grossEarnings - a.grossEarnings)[0];
+    const distNote =
+      periodShifts.length > 1 && bestShift.grossEarnings > total * 0.6
+        ? `Most of your money came from ${format(parseISO(bestShift.date), 'EEEE')}.`
+        : '';
+
+    return `${count} shift${count > 1 ? 's' : ''} this pay period, $${Math.round(total)} total. ${distNote || 'Efficient.'}`;
+  }, [shifts, payPeriod]);
 
   const bestDayInPeriod = useMemo(() => {
-    const weekStart = startOfWeek(new Date());
-    const days = Array.from({ length: 14 }, (_, i) => format(addDays(subDays(weekStart, 7), i), 'yyyy-MM-dd'));
-    
-    const periodShifts = shifts.filter(s => days.includes(s.date));
+    const periodWindow = { start: payPeriod.start, end: payPeriod.end };
+    const periodShifts = shifts.filter((s) => isWithinInterval(parseISO(s.date), periodWindow));
     if (periodShifts.length === 0) return null;
-    
-    return [...periodShifts].sort((a,b) => b.grossEarnings - a.grossEarnings)[0].date;
-  }, [shifts]);
+
+    return [...periodShifts].sort((a, b) => b.grossEarnings - a.grossEarnings)[0].date;
+  }, [shifts, payPeriod]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -235,6 +239,7 @@ export default function CalendarScreen() {
             shifts={shifts}
             jobs={jobs}
             expanded={expanded}
+            payPeriod={payPeriod}
             bestDay={bestDayInPeriod}
             onSelectDate={(date) => {
               const dayShifts = shifts.filter(s => s.date === date);
@@ -374,16 +379,15 @@ export default function CalendarScreen() {
   );
 }
 
-function Calendar({ currentMonth, shifts, jobs, expanded, onSelectDate, bestDay }: {
+function Calendar({ currentMonth, shifts, jobs, expanded, payPeriod, onSelectDate, bestDay }: {
   currentMonth: Date;
   shifts: Shift[];
   jobs: any[];
   expanded: boolean;
+  payPeriod: { start: Date; end: Date; label: string };
   onSelectDate: (date: string) => void;
   bestDay: string | null;
 }) {
-  const weekStart = startOfWeek(new Date());
-  
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(monthStart);
   const gridStart = new Date(monthStart);
@@ -391,14 +395,18 @@ function Calendar({ currentMonth, shifts, jobs, expanded, onSelectDate, bestDay 
   const gridEnd = new Date(monthEnd);
   while (gridEnd.getDay() !== 6) gridEnd.setDate(gridEnd.getDate() + 1);
 
-  const days = expanded 
+  const days = expanded
     ? eachDayOfInterval({ start: gridStart, end: gridEnd })
-    : Array.from({ length: 14 }, (_, i) => addDays(subDays(weekStart, 7), i));
+    : eachDayOfInterval({ start: payPeriod.start, end: payPeriod.end });
+
+  const dayLabels = expanded
+    ? DAYS
+    : Array.from({ length: 7 }, (_, i) => DAYS[(payPeriod.start.getDay() + i) % 7]);
 
   return (
     <View style={styles.calendarGridContainer}>
       <View style={styles.dayLabels}>
-        {DAYS.map((d) => (
+        {dayLabels.map((d) => (
           <Text key={d} style={styles.dayLabel}>{d[0]}</Text>
         ))}
       </View>
