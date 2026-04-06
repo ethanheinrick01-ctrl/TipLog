@@ -5,10 +5,37 @@ import { Shift, Job, Goal, Expense } from './types';
 const isWeb = Platform.OS === 'web';
 const db = isWeb ? null : SQLite.openDatabaseSync('tiplog.db');
 
-// Web fallback (in-memory, non-persistent)
+// Web fallback (goals persisted to localStorage)
 const webJobs = new Map<string, Job>();
 const webShifts = new Map<string, Shift>();
 const webGoals = new Map<string, Goal>();
+const WEB_GOALS_STORAGE_KEY = 'tiplog.web.goals.v1';
+
+function loadWebGoalsFromStorage() {
+  if (!isWeb) return;
+  try {
+    const raw = globalThis.localStorage?.getItem(WEB_GOALS_STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw) as Goal[];
+    parsed.forEach((g) => webGoals.set(g.id, g));
+  } catch {
+    // no-op: malformed storage should not crash app startup
+  }
+}
+
+function persistWebGoalsToStorage() {
+  if (!isWeb) return;
+  try {
+    globalThis.localStorage?.setItem(
+      WEB_GOALS_STORAGE_KEY,
+      JSON.stringify(Array.from(webGoals.values())),
+    );
+  } catch {
+    // no-op: storage quota/privacy mode issues shouldn't crash app
+  }
+}
+
+loadWebGoalsFromStorage();
 
 export function initDB() {
   if (isWeb || !db) return;
@@ -301,6 +328,7 @@ export function getGoals(userId: string): Goal[] {
 export function upsertGoal(goal: Goal): void {
   if (isWeb) {
     webGoals.set(goal.id, goal);
+    persistWebGoalsToStorage();
     return;
   }
 
@@ -314,6 +342,7 @@ export function upsertGoal(goal: Goal): void {
 export function deleteGoal(id: string): void {
   if (isWeb) {
     webGoals.delete(id);
+    persistWebGoalsToStorage();
     return;
   }
   db!.runSync('DELETE FROM goals WHERE id = ?', id);
