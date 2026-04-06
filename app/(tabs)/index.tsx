@@ -18,7 +18,6 @@ import {
   endOfMonth,
   eachDayOfInterval,
   isSameMonth,
-  addMonths,
   subMonths,
   parseISO,
   isToday,
@@ -113,6 +112,59 @@ export default function CalendarScreen() {
     () => monthWorkedShifts.reduce((sum, s) => sum + s.grossEarnings, 0),
     [monthWorkedShifts],
   );
+
+  const previousMonthWorkedTotal = useMemo(() => {
+    const previousMonth = subMonths(currentMonth, 1);
+    return shifts
+      .filter(
+        (s) =>
+          s.date <= todayStr &&
+          hasCashoutData(s) &&
+          isSameMonth(parseISO(s.date), previousMonth),
+      )
+      .reduce((sum, s) => sum + s.grossEarnings, 0);
+  }, [shifts, currentMonth, todayStr]);
+
+  const monthTrend = useMemo(() => {
+    if (previousMonthWorkedTotal <= 0) {
+      if (monthTotal <= 0) return null;
+      return {
+        label: 'First month tracked',
+        icon: 'sparkles-outline' as const,
+        color: Colors.textSecondary,
+        bg: 'rgba(255,255,255,0.08)',
+      };
+    }
+
+    const diffPct = Math.round(
+      ((monthTotal - previousMonthWorkedTotal) / previousMonthWorkedTotal) * 100,
+    );
+
+    if (Math.abs(diffPct) < 1) {
+      return {
+        label: 'Flat vs last month',
+        icon: 'remove-outline' as const,
+        color: Colors.textSecondary,
+        bg: 'rgba(255,255,255,0.08)',
+      };
+    }
+
+    if (diffPct > 0) {
+      return {
+        label: `+${diffPct}%`,
+        icon: 'trending-up' as const,
+        color: Colors.success,
+        bg: 'rgba(74, 222, 128, 0.1)',
+      };
+    }
+
+    return {
+      label: `${diffPct}%`,
+      icon: 'trending-down' as const,
+      color: '#f87171',
+      bg: 'rgba(248, 113, 113, 0.15)',
+    };
+  }, [monthTotal, previousMonthWorkedTotal]);
 
   const monthlyEarningsGoal = useMemo(
     () => goals.find((g) => g.period === 'monthly' && g.field === 'grossEarnings') ?? null,
@@ -237,22 +289,35 @@ export default function CalendarScreen() {
 
   function renderShiftRow(shift: Shift) {
     const job = jobs.find((j) => j.id === shift.jobId);
-    const showMeta = hasCashoutData(shift) && shift.date <= todayStr;
+    const hasData = hasCashoutData(shift);
+    const showMeta = hasData && shift.date <= todayStr;
+    const isUpcoming = !hasData && shift.date > todayStr;
     const baseline = avgEarnings > 0 ? avgEarnings : shift.grossEarnings;
+
+    // Format time range for upcoming shifts
+    const timeRange = shift.clockIn && shift.clockOut
+      ? `${fmt12h(shift.clockIn)} - ${fmt12h(shift.clockOut)}`
+      : null;
 
     return (
       <TouchableOpacity
         key={shift.id}
-        style={styles.shiftRow}
+        style={[styles.shiftRow, isUpcoming && styles.shiftRowUpcoming]}
         onPress={() => router.push(`/shift/${shift.id}`)}
       >
         <View style={styles.shiftBadge}>
-          <Ionicons name="cash-outline" size={20} color={job?.color || Colors.accent} />
+          <Ionicons
+            name={isUpcoming ? 'time-outline' : 'cash-outline'}
+            size={20}
+            color={job?.color || Colors.accent}
+          />
           <View style={[styles.shiftJobDot, { backgroundColor: job?.color || Colors.accent }]} />
         </View>
 
         <View style={styles.shiftMain}>
-          <Text style={styles.shiftDate}>{format(parseISO(shift.date), 'EEEE, MMM d')}</Text>
+          <Text style={[styles.shiftDate, isUpcoming && styles.shiftDateUpcoming]}>
+            {format(parseISO(shift.date), 'EEEE, MMM d')}
+          </Text>
           {showMeta && (
             <Text style={styles.shiftMeta}>
               {shift.grossEarnings > baseline * 1.5
@@ -266,14 +331,26 @@ export default function CalendarScreen() {
                 : 'Rough shift'}
             </Text>
           )}
+          {isUpcoming && (
+            <Text style={styles.shiftMeta}>
+              {job?.position ? `${job.position}` : 'Scheduled'}
+              {timeRange ? ` · ${timeRange}` : ''}
+            </Text>
+          )}
         </View>
 
-        <View style={styles.shiftRight}>
-          <Text style={styles.shiftAmount}>{fmt(shift.grossEarnings)}</Text>
-          <View style={styles.shiftTipsRow}>
-            <Text style={styles.shiftTipsLabel}>{fmt(shift.tipsTotal)} tips</Text>
+        {!isUpcoming ? (
+          <View style={styles.shiftRight}>
+            <Text style={styles.shiftAmount}>{fmt(shift.grossEarnings)}</Text>
+            <View style={styles.shiftTipsRow}>
+              <Text style={styles.shiftTipsLabel}>{fmt(shift.tipsTotal)} tips</Text>
+            </View>
           </View>
-        </View>
+        ) : (
+          <View style={styles.shiftRight}>
+            <Text style={styles.scheduledLabel}>Scheduled</Text>
+          </View>
+        )}
 
         <TouchableOpacity
           style={styles.shiftUploadBtn}
@@ -318,10 +395,14 @@ export default function CalendarScreen() {
 
             <View style={styles.moneyRow}>
               <Text style={styles.moneyValue}>${monthTotal.toFixed(2)}</Text>
-              <View style={styles.moneyTrend}>
-                <Ionicons name="trending-up" size={14} color={Colors.success} />
-                <Text style={styles.trendText}>+12%</Text>
-              </View>
+              {monthTrend ? (
+                <View style={[styles.moneyTrend, { backgroundColor: monthTrend.bg }]}>
+                  <Ionicons name={monthTrend.icon} size={14} color={monthTrend.color} />
+                  <Text style={[styles.trendText, { color: monthTrend.color }]}>
+                    {monthTrend.label}
+                  </Text>
+                </View>
+              ) : null}
             </View>
 
             <Text style={styles.insightLine}>{insight}</Text>
@@ -856,6 +937,18 @@ const styles = StyleSheet.create({
   shiftAmount: { fontSize: FontSize.lg, color: Colors.textPrimary, fontWeight: '700' },
   shiftTipsRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   shiftTipsLabel: { fontSize: 10, color: Colors.success, fontWeight: '700' },
+  shiftRowUpcoming: {
+    backgroundColor: 'rgba(255,255,255,0.01)',
+    borderColor: 'rgba(255,255,255,0.03)',
+  },
+  shiftDateUpcoming: {
+    color: Colors.textSecondary,
+  },
+  scheduledLabel: {
+    fontSize: FontSize.md,
+    color: Colors.textMuted,
+    fontWeight: '600',
+  },
   empty: { alignItems: 'center', paddingVertical: Spacing.xxl, gap: Spacing.md },
   emptyText: { color: Colors.textMuted, fontSize: FontSize.md },
   modalOverlay: {

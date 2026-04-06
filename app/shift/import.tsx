@@ -659,6 +659,14 @@ export default function ImportShiftScreen() {
           </View>
         )}
 
+        {/* Return Home - visible during in-progress import before result is ready */}
+        {!hasResult && (selectedImages.length > 0 || loading) && (
+          <TouchableOpacity style={styles.homeBtn} onPress={() => router.replace('/(tabs)')}>
+            <Text style={styles.homeBtnText}>Return Home</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Return to Home Screen - after result is ready (existing behavior) */}
         {hasResult && (
           <TouchableOpacity style={styles.homeBtn} onPress={() => router.replace('/(tabs)')}>
             <Text style={styles.homeBtnText}>Return to Home Screen</Text>
