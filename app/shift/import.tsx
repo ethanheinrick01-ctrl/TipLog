@@ -122,6 +122,19 @@ export default function ImportShiftScreen() {
         const cats = data.tipOutByCategory ?? {};
         const init: Record<string, string> = {};
         Object.entries(cats).forEach(([k, v]) => { init[k] = String(v ?? ''); });
+
+        // Apply bar minimum immediately in UI so user sees the corrected value before saving
+        const shiftDate = targetShiftDate ?? data.date ?? new Date().toISOString().slice(0, 10);
+        const parsedBar = parseFloat(init.bar ?? String(cats.bar ?? 0)) || 0;
+        const barMinimum = getBarMinimumTipOut(
+          shiftDate,
+          data.clockIn ?? targetShift?.clockIn,
+          data.clockOut ?? targetShift?.clockOut,
+        );
+        if (parsedBar < barMinimum) {
+          init.bar = barMinimum.toFixed(2);
+        }
+
         setTipOutOverrides(init);
         // Default runner/busser based on whether OCR found a value
         // If OCR detected a value → yes; otherwise prompt user (default no)
@@ -280,6 +293,41 @@ export default function ImportShiftScreen() {
 
   // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+  function parseTimeToMinutes(time?: string): number | null {
+    if (!time) return null;
+    const raw = time.trim().toLowerCase();
+
+    // 24h: HH:mm
+    const m24 = raw.match(/^(\d{1,2}):(\d{2})$/);
+    if (m24) {
+      const h = Number(m24[1]);
+      const m = Number(m24[2]);
+      if (Number.isFinite(h) && Number.isFinite(m)) return h * 60 + m;
+    }
+
+    // 12h: h:mm am/pm OR h am/pm
+    const m12 = raw.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/);
+    if (m12) {
+      let h = Number(m12[1]);
+      const m = Number(m12[2] ?? '0');
+      const suffix = m12[3];
+      if (suffix === 'pm' && h < 12) h += 12;
+      if (suffix === 'am' && h === 12) h = 0;
+      if (Number.isFinite(h) && Number.isFinite(m)) return h * 60 + m;
+    }
+
+    return null;
+  }
+
+  function getBarMinimumTipOut(dateStr: string, clockIn?: string, clockOut?: string): number {
+    const day = new Date(`${dateStr}T00:00:00`).getDay(); // 0 Sun ... 6 Sat
+    const isWeekendWindow = day === 5 || day === 6 || day === 0; // Fri/Sat/Sun
+    const cutoffMinutes = isWeekendWindow ? 16 * 60 : 17 * 60; // 4pm weekend, 5pm Mon-Thu
+
+    const timeMinutes = parseTimeToMinutes(clockIn) ?? parseTimeToMinutes(clockOut) ?? cutoffMinutes;
+    return timeMinutes < cutoffMinutes ? 1.5 : 2.0;
+  }
+
   function buildCashoutShift(
     r: ToastReceiptData,
     cashTips = 0,
@@ -293,6 +341,19 @@ export default function ImportShiftScreen() {
     if (Object.keys(tipOutByCategory).length === 0) {
       Object.entries(r.tipOutByCategory ?? {}).forEach(([k, v]) => { tipOutByCategory[k] = v ?? 0; });
     }
+    const date = forcedDate ?? existingShift?.date ?? r.date ?? new Date().toISOString().slice(0, 10);
+    const clockIn = r.clockIn ?? existingShift?.clockIn ?? '17:00';
+    const clockOut = r.clockOut ?? existingShift?.clockOut ?? '23:00';
+
+    // Mike Anderson's bar minimum rule:
+    // Mon-Thu cutoff 5pm, Fri/Sat/Sun cutoff 4pm
+    // AM floor $1.50, PM floor $2.00
+    const barMinimum = getBarMinimumTipOut(date, clockIn, clockOut);
+    const barTipOut = tipOutByCategory.bar ?? 0;
+    if (barTipOut < barMinimum) {
+      tipOutByCategory.bar = barMinimum;
+    }
+
     const computed = computeShift({
       tipsCash: cashTips,
       tipsCredit: r.tipsCredit ?? existingShift?.tipsCredit ?? 0,
@@ -300,15 +361,16 @@ export default function ImportShiftScreen() {
       sales: r.sales ?? existingShift?.sales ?? 0,
       covers: r.covers ?? existingShift?.covers ?? 0,
       tipOutByCategory,
-      clockIn: r.clockIn ?? existingShift?.clockIn ?? '',
-      clockOut: r.clockOut ?? existingShift?.clockOut ?? '',
+      clockIn,
+      clockOut,
     });
+
     return {
       id: existingShift?.id,
-      date: forcedDate ?? existingShift?.date ?? r.date ?? new Date().toISOString().slice(0, 10),
+      date,
       jobId: existingShift?.jobId ?? defaultJobId,
-      clockIn: r.clockIn ?? existingShift?.clockIn ?? '17:00',
-      clockOut: r.clockOut ?? existingShift?.clockOut ?? '23:00',
+      clockIn,
+      clockOut,
       tipsCash: cashTips,
       tipsCredit: r.tipsCredit ?? existingShift?.tipsCredit ?? 0,
       tipsWithheld: r.tipsWithheld ?? existingShift?.tipsWithheld ?? 0,
