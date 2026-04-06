@@ -52,7 +52,24 @@ export default function CalendarScreen() {
       .reduce((sum, s) => sum + s.grossEarnings, 0);
   }, [shifts, currentMonth]);
 
-  const firstName = user?.name?.split(' ')[0] || 'User';
+  const insight = useMemo(() => {
+    if (shifts.length === 0) return "No shifts yet. Snap a cashout to start.";
+    
+    const goal = 1200;
+    const remaining = goal - monthTotal;
+    
+    if (remaining <= 0) return "🎯 Goal smashed. Keep stacking.";
+    
+    // Check if a specific day carried the week
+    const recentShifts = shifts.slice(0, 7);
+    const bestShift = [...recentShifts].sort((a, b) => b.grossEarnings - a.grossEarnings)[0];
+    
+    if (bestShift && bestShift.grossEarnings > 200) {
+      return `${format(parseISO(bestShift.date), 'EEEE')} carried your week.`;
+    }
+
+    return `$${remaining.toFixed(0)} left to hit your goal.`;
+  }, [shifts, monthTotal]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -87,11 +104,7 @@ export default function CalendarScreen() {
               </View>
             </View>
 
-            <Text style={styles.insightLine}>
-              {monthTotal >= 1200 
-                ? "🎯 Goal smashed. Keep stacking." 
-                : `$${(1200 - monthTotal).toFixed(0)} left to hit your goal.`}
-            </Text>
+            <Text style={styles.insightLine}>{insight}</Text>
 
             <View style={styles.progressBar}>
               <View style={[styles.progressFill, { width: '45%' }]} />
@@ -188,7 +201,7 @@ export default function CalendarScreen() {
                     {format(parseISO(shift.date), 'EEEE, MMM d')}
                   </Text>
                   <Text style={styles.shiftMeta}>
-                    {job?.name || 'Shift'} · {job?.position || ''} · {shift.hours}h
+                    {shift.grossEarnings > 200 ? '🔥 Strong night' : shift.grossEarnings < 100 ? '🧊 Light night' : '✅ Solid night'}
                   </Text>
                 </View>
 
