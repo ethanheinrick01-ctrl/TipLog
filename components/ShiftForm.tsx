@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { showAlert } from '../lib/webAlert';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { format } from 'date-fns';
 import { Colors, Spacing, Radius, FontSize } from '../constants/theme';
@@ -75,6 +75,13 @@ export function ShiftForm({ existing, initialDate }: Props) {
 
   const [date, setDate] = useState(existing?.date ?? initialDate ?? format(new Date(), 'yyyy-MM-dd'));
   const [jobId, setJobId] = useState(defaultJobId);
+  // Jobs may load after mount on web (async Supabase pull). Re-derive jobId
+  // once they arrive if it's still empty and this isn't an edit.
+  useEffect(() => {
+    if (!jobId && !existing && jobs.length > 0) {
+      setJobId(jobs[0].id);
+    }
+  }, [jobs]);
   const [clockIn, setClockIn] = useState(existing?.clockIn ?? '17:00');
   const [clockOut, setClockOut] = useState(existing?.clockOut ?? '23:00');
   const [tipsCash, setTipsCash] = useState(existing?.tipsCash ? String(existing.tipsCash) : '');

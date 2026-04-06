@@ -81,11 +81,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ user: null, session: null });
   },
 
-  setSession: (session) => {
-    set({ session, loading: false });
+  setSession: async (session) => {
+    set({ session });
     if (session?.user?.id) {
-      get().loadUser(session.user.id);
+      await get().loadUser(session.user.id);
     }
+    set({ loading: false });
   },
 
   loadUser: async (userId) => {
