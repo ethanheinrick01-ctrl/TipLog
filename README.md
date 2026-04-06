@@ -1,6 +1,6 @@
 # Gratuitize Me 💰
 
-**The ultimate tip-tracking companion for hospitality professionals.**
+**The ultimate tip-tracking companion for shrimp slingin' professionals.**
 
 Built specifically for the high-volume service ecosystem (starting with Mike Anderson's Seafood), **Gratuitize Me** takes the pain out of cashouts and scheduling. No more manual entry, no more guessing your earnings, and no more lost slips.
 
