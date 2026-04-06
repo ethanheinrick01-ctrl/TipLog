@@ -19,7 +19,6 @@ import {
   parseISO,
   isWithinInterval,
   subMonths,
-  subDays,
 } from 'date-fns';
 import { Colors, Spacing, Radius, FontSize } from '../../constants/theme';
 import { useShiftStore } from '../../store/shiftStore';
@@ -33,9 +32,43 @@ import {
   getPreviousPayPeriod,
   DEFAULT_PAY_PERIOD_ANCHOR,
 } from '../../lib/calculations';
+import { Shift, PeriodSummary } from '../../lib/types';
 
 type PTab = 'payperiod' | 'week' | 'month' | 'year';
 type MainTab = 'stats' | 'forecast';
+
+// ─── Insight narrative ────────────────────────────────────────────────────
+
+function getInsightText(summary: PeriodSummary, filtered: Shift[]): string {
+  if (summary.shifts === 0) {
+    return 'No shifts in this period yet. Log one to unlock trends.';
+  }
+  const bestGross = Math.max(...filtered.map((s) => s.grossEarnings));
+  const concentrationRisk =
+    summary.shifts > 1 &&
+    summary.grossEarnings > 0 &&
+    bestGross / summary.grossEarnings > 0.6;
+  if (concentrationRisk) {
+    const pct = Math.round((bestGross / summary.grossEarnings) * 100);
+    return `${pct}% of earnings came from one shift — income spread is low.`;
+  }
+  if (summary.tipPercent >= 18) {
+    return `${fmtPct(summary.tipPercent)} tip rate this period — above average.`;
+  }
+  if (summary.hourlyAvg >= 35) {
+    return `${fmt(summary.hourlyAvg)}/hr — running high efficiency this period.`;
+  }
+  const avgPerShift = summary.grossEarnings / summary.shifts;
+  return `${summary.shifts} shifts · ${fmt(summary.grossEarnings)} total · ${fmt(avgPerShift)} avg per shift.`;
+}
+
+function getHeroMicro(summary: PeriodSummary): string {
+  if (summary.shifts === 0) return '';
+  if (summary.hourlyAvg >= 35) return 'Efficient period';
+  if (summary.shifts <= 2) return 'Low volume period';
+  if (summary.tipPercent >= 18) return 'Strong tips';
+  return 'On track';
+}
 
 export default function AnalyticsScreen() {
   const { shifts } = useShiftStore();
@@ -46,7 +79,6 @@ export default function AnalyticsScreen() {
   const [period, setPeriod] = useState<PTab>('payperiod');
 
   const now = new Date();
-  // todayStr uses local date components — toISOString() would flip at 7 PM CST (UTC-5)
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const currentPP = useMemo(() => getPayPeriodForDate(anchor, new Date()), [anchor, todayStr]);
   const prevPP = useMemo(() => getPreviousPayPeriod(anchor, new Date()), [anchor, todayStr]);
@@ -57,7 +89,7 @@ export default function AnalyticsScreen() {
       start = currentPP.start;
       end = currentPP.end;
     } else if (period === 'week') {
-      start = startOfWeek(now, { weekStartsOn: 4 }); // Thursday anchor
+      start = startOfWeek(now, { weekStartsOn: 4 });
       end = endOfWeek(now, { weekStartsOn: 4 });
     } else if (period === 'month') {
       start = startOfMonth(now);
@@ -71,7 +103,6 @@ export default function AnalyticsScreen() {
     );
   }, [shifts, period, currentPP]);
 
-  // Previous pay period data (for comparison)
   const prevFiltered = useMemo(() =>
     shifts.filter((s) =>
       isWithinInterval(parseISO(s.date), { start: prevPP.start, end: prevPP.end }),
@@ -96,6 +127,11 @@ export default function AnalyticsScreen() {
   }, [shifts, todayStr]);
 
   const maxBar = Math.max(...barData.map((b) => b.value), 1);
+  const activeMonths = barData.filter((b) => b.value > 0).length;
+  const highestMonth = barData.reduce(
+    (best, b) => (b.value > best.value ? b : best),
+    { label: '', value: 0 },
+  );
 
   const periodLabel =
     period === 'payperiod'
@@ -106,9 +142,19 @@ export default function AnalyticsScreen() {
       ? format(now, 'MMMM yyyy')
       : format(now, 'yyyy');
 
-  // Delta vs previous pay period (only shown on payperiod tab)
   const delta = summary.grossEarnings - prevSummary.grossEarnings;
   const deltaPositive = delta >= 0;
+  const avgPerShift = summary.shifts > 0 ? summary.grossEarnings / summary.shifts : 0;
+  const insightText = getInsightText(summary, filtered);
+  const heroMicro = getHeroMicro(summary);
+
+  // Chip thresholds
+  const tipPctChip = summary.tipPercent >= 18 ? 'Strong tip %' : null;
+  const tipOutChip =
+    summary.shifts > 0 && summary.grossEarnings > 0 && summary.tipOut / summary.grossEarnings < 0.08
+      ? 'Low tip-out'
+      : null;
+  const efficiencyChip = summary.hourlyAvg >= 35 ? 'High efficiency' : null;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -156,18 +202,36 @@ export default function AnalyticsScreen() {
 
             <Text style={styles.periodLabel}>{periodLabel}</Text>
 
+            {/* Insight block */}
+            <View style={styles.insightBlock}>
+              <Text style={styles.insightBlockText}>{insightText}</Text>
+            </View>
+
             {/* Pay period comparison banner */}
-            {period === 'payperiod' && prevSummary.shifts > 0 && (
+            {period === 'payperiod' && (
               <View style={styles.compareBanner}>
-                <Ionicons
-                  name={deltaPositive ? 'trending-up' : 'trending-down'}
-                  size={18}
-                  color={deltaPositive ? Colors.success : Colors.error}
-                />
-                <Text style={styles.compareText}>
-                  {deltaPositive ? '+' : ''}{fmt(delta)} vs last period
-                  <Text style={styles.compareSubText}> ({prevPP.label})</Text>
-                </Text>
+                {prevSummary.shifts === 0 ? (
+                  <Text style={[styles.compareText, { color: Colors.textMuted }]}>
+                    First active pay period
+                  </Text>
+                ) : (
+                  <>
+                    <Ionicons
+                      name={deltaPositive ? 'trending-up' : 'trending-down'}
+                      size={18}
+                      color={deltaPositive ? Colors.success : Colors.error}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.compareText}>
+                        {deltaPositive ? '+' : ''}{fmt(delta)} vs last period
+                        <Text style={styles.compareSubText}> ({prevPP.label})</Text>
+                      </Text>
+                      <Text style={[styles.compareContextLabel, { color: deltaPositive ? Colors.success : Colors.error }]}>
+                        {deltaPositive ? 'Up from last period' : 'Down from last period'}
+                      </Text>
+                    </View>
+                  </>
+                )}
               </View>
             )}
 
@@ -175,15 +239,21 @@ export default function AnalyticsScreen() {
             <View style={styles.heroCard}>
               <Text style={styles.heroLabel}>Total Earnings</Text>
               <Text style={styles.heroValue}>{fmt(summary.grossEarnings)}</Text>
-              <View style={styles.heroRow}>
-                <Stat label="Shifts" value={String(summary.shifts)} />
-                <Stat label="Hours" value={summary.hours.toFixed(1)} />
-                <Stat label="$/hr" value={fmt(summary.hourlyAvg)} />
-              </View>
+              <Text style={styles.heroSubtext}>
+                {summary.shifts} shifts · {summary.hours.toFixed(1)} hrs · {fmt(summary.hourlyAvg)}/hr
+              </Text>
+              {heroMicro.length > 0 && (
+                <Text style={styles.heroMicro}>{heroMicro}</Text>
+              )}
+              {efficiencyChip && (
+                <View style={{ marginTop: Spacing.sm }}>
+                  <MicroChip label={efficiencyChip} color={Colors.success} />
+                </View>
+              )}
             </View>
 
             {/* Previous period mini-card (pay period only) */}
-            {period === 'payperiod' && (
+            {period === 'payperiod' && prevSummary.shifts > 0 && (
               <>
                 <Text style={styles.sectionTitle}>Previous Period  ·  {prevPP.label}</Text>
                 <View style={styles.prevCard}>
@@ -195,28 +265,75 @@ export default function AnalyticsScreen() {
               </>
             )}
 
-            <Text style={styles.sectionTitle}>Tips</Text>
+            {/* Highlights */}
+            {summary.shifts > 0 && (
+              <>
+                <Text style={styles.sectionTitle}>Highlights</Text>
+                <View style={styles.highlightsBox}>
+                  <View style={styles.highlightItem}>
+                    <Text style={styles.highlightValue}>{fmtPct(summary.tipPercent)}</Text>
+                    <Text style={styles.highlightLabel}>Tip rate</Text>
+                  </View>
+                  <View style={styles.highlightDivider} />
+                  <View style={styles.highlightItem}>
+                    <Text style={styles.highlightValue}>{fmt(summary.tipOut)}</Text>
+                    <Text style={styles.highlightLabel}>Total tip-out</Text>
+                  </View>
+                  <View style={styles.highlightDivider} />
+                  <View style={styles.highlightItem}>
+                    <Text style={styles.highlightValue}>{fmt(avgPerShift)}</Text>
+                    <Text style={styles.highlightLabel}>Avg/shift</Text>
+                  </View>
+                </View>
+              </>
+            )}
+
+            {/* Income */}
+            <Text style={styles.sectionTitle}>Income</Text>
             <View style={styles.row}>
               <InfoCard label="Total Tips" value={fmt(summary.tipsTotal)} accent={Colors.accent} />
-              <InfoCard label="Cash" value={fmt(summary.tipsCash)} accent={Colors.cash} />
-              <InfoCard label="Credit" value={fmt(summary.tipsCredit)} accent={Colors.credit} />
+              <CashCreditCard cash={summary.tipsCash} credit={summary.tipsCredit} />
+              <InfoCard label="Avg/Shift" value={fmt(avgPerShift)} accent={Colors.textSecondary} />
             </View>
 
-            <Text style={styles.sectionTitle}>Sales</Text>
+            {/* Performance */}
+            <Text style={styles.sectionTitle}>Performance</Text>
             <View style={styles.row}>
               <InfoCard label="Sales" value={fmt(summary.sales)} accent={Colors.textSecondary} />
-              <InfoCard label="Tip %" value={fmtPct(summary.tipPercent)} accent={Colors.accent} />
+              <InfoCard
+                label="Tip %"
+                value={fmtPct(summary.tipPercent)}
+                accent={Colors.accent}
+                chip={tipPctChip ?? undefined}
+              />
               <InfoCard label="Covers" value={String(summary.covers)} accent={Colors.textSecondary} />
             </View>
 
-            <Text style={styles.sectionTitle}>Tip Flow</Text>
+            {/* Damage */}
+            <Text style={styles.sectionTitle}>Damage</Text>
             <View style={styles.row}>
-              <InfoCard label="Tip Out" value={fmt(summary.tipOut)} accent={Colors.error} />
-              <InfoCard label="Tip In" value={fmt(summary.tipIn)} accent={Colors.success} />
+              <InfoCard
+                label="Tip Out"
+                value={fmt(summary.tipOut)}
+                accent={Colors.error}
+                chip={tipOutChip ?? undefined}
+              />
               <InfoCard label="Net Tips" value={fmt(summary.netTips)} accent={Colors.accent} />
+              <InfoCard label="Expenses" value={fmt(summary.expenseTotal)} accent={Colors.error} />
             </View>
 
-            <Text style={styles.sectionTitle}>Last 6 Months</Text>
+            {/* Last 6 Months */}
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Last 6 Months</Text>
+              {activeMonths > 0 && (
+                <Text style={styles.highestMonthLabel}>
+                  Best: {highestMonth.label} · ${Math.round(highestMonth.value)}
+                </Text>
+              )}
+            </View>
+            {activeMonths <= 1 && (
+              <Text style={styles.sparseHelper}>More data appears as you log shifts.</Text>
+            )}
             <View style={styles.barChart}>
               {barData.map((item) => (
                 <View key={item.label} style={styles.barGroup}>
@@ -227,7 +344,13 @@ export default function AnalyticsScreen() {
                     <View
                       style={[
                         styles.bar,
-                        { height: Math.max((item.value / maxBar) * 120, item.value > 0 ? 4 : 0) },
+                        {
+                          height: Math.max((item.value / maxBar) * 120, item.value > 0 ? 4 : 0),
+                          backgroundColor:
+                            item.value === highestMonth.value && item.value > 0
+                              ? Colors.accentActive
+                              : Colors.accent,
+                        },
                       ]}
                     />
                   </View>
@@ -236,11 +359,12 @@ export default function AnalyticsScreen() {
               ))}
             </View>
 
+            {/* Other */}
             <Text style={styles.sectionTitle}>Other</Text>
             <View style={styles.row}>
               <InfoCard label="Svc Charge" value={fmt(summary.serviceCharge)} accent={Colors.textSecondary} />
               <InfoCard label="Mileage" value={`${summary.mileage.toFixed(1)} mi`} accent={Colors.textSecondary} />
-              <InfoCard label="Expenses" value={fmt(summary.expenseTotal)} accent={Colors.error} />
+              <InfoCard label="Tip In" value={fmt(summary.tipIn)} accent={Colors.success} />
             </View>
           </>
         ) : (
@@ -372,7 +496,7 @@ function ForecastView({ forecast }: { forecast: ReturnType<typeof buildForecast>
   );
 }
 
-// ─── Shared ───────────────────────────────────────────────────────────────
+// ─── Shared components ────────────────────────────────────────────────────
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
@@ -383,11 +507,48 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function InfoCard({ label, value, accent }: { label: string; value: string; accent: string }) {
+function MicroChip({ label, color }: { label: string; color?: string }) {
+  const c = color ?? Colors.accentActive;
+  return (
+    <View style={[styles.microChip, { borderColor: c + '55', backgroundColor: c + '1a' }]}>
+      <Text style={[styles.microChipText, { color: c }]}>{label}</Text>
+    </View>
+  );
+}
+
+function InfoCard({
+  label,
+  value,
+  accent,
+  chip,
+}: {
+  label: string;
+  value: string;
+  accent: string;
+  chip?: string;
+}) {
   return (
     <View style={styles.infoCard}>
       <Text style={[styles.infoValue, { color: accent }]}>{value}</Text>
       <Text style={styles.infoLabel}>{label}</Text>
+      {chip && (
+        <View style={{ marginTop: Spacing.xs }}>
+          <MicroChip label={chip} color={accent} />
+        </View>
+      )}
+    </View>
+  );
+}
+
+function CashCreditCard({ cash, credit }: { cash: number; credit: number }) {
+  return (
+    <View style={styles.infoCard}>
+      <View style={styles.cashCreditRow}>
+        <Text style={[styles.infoValueSm, { color: Colors.cash }]}>{fmt(cash)}</Text>
+        <Text style={styles.cashCreditSlash}>/</Text>
+        <Text style={[styles.infoValueSm, { color: Colors.credit }]}>{fmt(credit)}</Text>
+      </View>
+      <Text style={styles.infoLabel}>Cash / Credit</Text>
     </View>
   );
 }
@@ -430,6 +591,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     marginBottom: Spacing.xs,
   },
+  // Insight block
+  insightBlock: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
+  },
+  insightBlockText: {
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    lineHeight: 18,
+  },
+  // Compare banner
   compareBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -445,6 +623,12 @@ const styles = StyleSheet.create({
   },
   compareText: { fontSize: FontSize.sm, color: Colors.textPrimary, fontWeight: '500' },
   compareSubText: { color: Colors.textSubtle, fontWeight: '400' },
+  compareContextLabel: {
+    fontSize: FontSize.xs,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  // Hero
   heroCard: {
     margin: Spacing.md,
     backgroundColor: Colors.card,
@@ -454,8 +638,19 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
   },
   heroLabel: { fontSize: FontSize.sm, color: Colors.textMuted, marginBottom: Spacing.xs },
-  heroValue: { fontSize: FontSize.hero, fontWeight: '600', color: Colors.accentActive, marginBottom: Spacing.md },
-  heroRow: { flexDirection: 'row', gap: Spacing.xl },
+  heroValue: { fontSize: FontSize.hero, fontWeight: '600', color: Colors.accentActive, marginBottom: Spacing.xs },
+  heroSubtext: {
+    fontSize: FontSize.sm,
+    color: Colors.textMuted,
+    marginBottom: Spacing.xs,
+  },
+  heroMicro: {
+    fontSize: FontSize.xs,
+    color: Colors.textSubtle,
+    fontStyle: 'italic',
+    marginBottom: Spacing.xs,
+  },
+  heroRow: { flexDirection: 'row', gap: Spacing.xl, marginTop: Spacing.sm },
   stat: { alignItems: 'center' },
   statValue: { fontSize: FontSize.lg, fontWeight: '600', color: Colors.textPrimary },
   statLabel: { fontSize: FontSize.xs, color: Colors.textSubtle, marginTop: 2 },
@@ -467,6 +662,33 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
     marginBottom: Spacing.sm,
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    paddingRight: Spacing.md,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  // Highlights box
+  highlightsBox: {
+    flexDirection: 'row',
+    marginHorizontal: Spacing.md,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
+  },
+  highlightItem: { flex: 1, alignItems: 'center' },
+  highlightValue: { fontSize: FontSize.lg, fontWeight: '600', color: Colors.textPrimary },
+  highlightLabel: { fontSize: FontSize.xs, color: Colors.textSubtle, marginTop: 2 },
+  highlightDivider: {
+    width: 1,
+    backgroundColor: Colors.borderSubtle,
+    marginVertical: 2,
+  },
+  // Prev period card
   prevCard: {
     flexDirection: 'row',
     marginHorizontal: Spacing.md,
@@ -481,6 +703,7 @@ const styles = StyleSheet.create({
   prevLabel: { fontSize: FontSize.xs, color: Colors.textSubtle, marginBottom: Spacing.xs },
   prevPrev: { fontSize: FontSize.sm, color: Colors.textSecondary },
   prevDiff: { fontSize: FontSize.sm, fontWeight: '600', marginTop: 2 },
+  // Info cards
   row: { flexDirection: 'row', paddingHorizontal: Spacing.md, gap: Spacing.sm },
   infoCard: {
     flex: 1,
@@ -492,7 +715,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   infoValue: { fontSize: FontSize.lg, fontWeight: '600' },
+  infoValueSm: { fontSize: FontSize.md, fontWeight: '600' },
   infoLabel: { fontSize: FontSize.xs, color: Colors.textSubtle, marginTop: Spacing.xs },
+  cashCreditRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  cashCreditSlash: { fontSize: FontSize.sm, color: Colors.textSubtle },
+  // Micro chip
+  microChip: {
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  microChipText: {
+    fontSize: FontSize.xs,
+    fontWeight: '500',
+  },
+  // Bar chart
   barChart: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -510,6 +748,21 @@ const styles = StyleSheet.create({
   bar: { width: 28, backgroundColor: Colors.accent, borderRadius: Radius.micro },
   barValue: { fontSize: 9, color: Colors.textSubtle, marginBottom: 2, textAlign: 'center' },
   barLabel: { fontSize: FontSize.xs, color: Colors.textSecondary },
+  sparseHelper: {
+    fontSize: FontSize.sm,
+    color: Colors.textSubtle,
+    paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    fontStyle: 'italic',
+  },
+  highestMonthLabel: {
+    fontSize: FontSize.xs,
+    color: Colors.accentActive,
+    fontWeight: '500',
+    paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  // Forecast
   forecastEmpty: {
     margin: Spacing.md,
     backgroundColor: Colors.card,
