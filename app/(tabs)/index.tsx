@@ -6,7 +6,6 @@ import {
   ScrollView,
   Pressable,
   Modal,
-  FlatList,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -23,9 +22,7 @@ import {
   parseISO,
   isToday,
   startOfWeek,
-  endOfWeek,
   addDays,
-  isSameDay,
   subDays,
 } from 'date-fns';
 import { BarChart } from 'react-native-gifted-charts';
