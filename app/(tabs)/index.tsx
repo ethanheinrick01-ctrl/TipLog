@@ -30,10 +30,11 @@ import { useAuthStore } from '../../store/authStore';
 import {
   fmt,
   fmt12h,
+  summarizeShifts,
   getPayPeriodForDate,
   DEFAULT_PAY_PERIOD_ANCHOR,
 } from '../../lib/calculations';
-import { Shift } from '../../lib/types';
+import { Shift, GoalField } from '../../lib/types';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -84,6 +85,14 @@ function hasCashoutData(shift: Shift) {
     shift.sales > 0 ||
     !!(shift.clockOut && shift.clockOut.trim())
   );
+}
+
+function formatGoalValue(value: number, field: GoalField | null): string {
+  if (!field) return `$${value.toFixed(0)}`;
+  if (field === 'tipPercent') return `${value.toFixed(1)}%`;
+  if (field === 'hours') return `${value.toFixed(1)}h`;
+  if (field === 'covers') return `${Math.round(value)}`;
+  return `$${value.toFixed(0)}`;
 }
 
 export default function CalendarScreen() {
@@ -166,14 +175,22 @@ export default function CalendarScreen() {
     };
   }, [monthTotal, previousMonthWorkedTotal]);
 
-  const monthlyEarningsGoal = useMemo(
-    () => goals.find((g) => g.period === 'monthly' && g.field === 'grossEarnings') ?? null,
-    [goals],
-  );
+  const monthlyGoal = useMemo(() => {
+    const monthlyGoals = goals.filter((g) => g.period === 'monthly');
+    if (monthlyGoals.length === 0) return null;
+    return monthlyGoals.find((g) => g.field === 'grossEarnings') ?? monthlyGoals[0];
+  }, [goals]);
 
-  const goalTarget = monthlyEarningsGoal?.target ?? null;
-  const goalProgressPct = goalTarget ? Math.min((monthTotal / goalTarget) * 100, 100) : 0;
-  const goalRemaining = goalTarget ? Math.max(goalTarget - monthTotal, 0) : 0;
+  const monthSummary = useMemo(() => summarizeShifts(monthWorkedShifts), [monthWorkedShifts]);
+
+  const goalCurrentValue = useMemo(() => {
+    if (!monthlyGoal) return 0;
+    return Number(monthSummary[monthlyGoal.field]) || 0;
+  }, [monthSummary, monthlyGoal]);
+
+  const goalTarget = monthlyGoal?.target ?? null;
+  const goalProgressPct = goalTarget ? Math.min((goalCurrentValue / goalTarget) * 100, 100) : 0;
+  const goalRemaining = goalTarget ? Math.max(goalTarget - goalCurrentValue, 0) : 0;
 
   const payPeriod = useMemo(
     () => getPayPeriodForDate(user?.payPeriodAnchor ?? DEFAULT_PAY_PERIOD_ANCHOR, new Date()),
@@ -199,9 +216,9 @@ export default function CalendarScreen() {
         ? `${workedCount} out of ${scheduledCount} shifts worked`
         : `${workedCount} shift${workedCount === 1 ? '' : 's'} worked`;
 
-    if (goalTarget) {
-      if (goalRemaining <= 0) return `${workedText} · 🎯 Goal smashed.`;
-      return `${workedText} · $${goalRemaining.toFixed(0)} of $${goalTarget.toFixed(0)} goal remains.`;
+    if (goalTarget && monthlyGoal) {
+      if (goalRemaining <= 0) return `${workedText} · 🎯 ${monthlyGoal.label} hit.`;
+      return `${workedText} · ${formatGoalValue(goalRemaining, monthlyGoal.field)} left on ${monthlyGoal.label}.`;
     }
 
     // Comparison insight (worked shifts only)
@@ -233,7 +250,7 @@ export default function CalendarScreen() {
     }
 
     return `${workedText}.`;
-  }, [monthShifts, monthWorkedShifts, goalTarget, goalRemaining, shifts, todayStr]);
+  }, [monthShifts, monthWorkedShifts, goalTarget, goalRemaining, monthlyGoal, shifts, todayStr]);
 
   const weeklySummary = useMemo(() => {
     const periodWindow = { start: payPeriod.start, end: payPeriod.end };
@@ -419,9 +436,11 @@ export default function CalendarScreen() {
                 </View>
                 <View style={styles.progressLabels}>
                   <Text style={styles.progressText}>
-                    {Math.round(goalProgressPct)}% of ${goalTarget.toFixed(0)} goal
+                    {Math.round(goalProgressPct)}% of {formatGoalValue(goalTarget, monthlyGoal?.field ?? null)} goal
                   </Text>
-                  <Text style={styles.remainingText}>${goalRemaining.toFixed(0)} left</Text>
+                  <Text style={styles.remainingText}>
+                    {formatGoalValue(goalRemaining, monthlyGoal?.field ?? null)} left
+                  </Text>
                 </View>
               </>
             ) : null}
