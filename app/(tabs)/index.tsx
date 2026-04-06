@@ -137,6 +137,78 @@ export default function CalendarScreen() {
     return [...periodShifts].sort((a, b) => b.grossEarnings - a.grossEarnings)[0].date;
   }, [shifts, payPeriod]);
 
+  const completedShifts = useMemo(
+    () =>
+      shifts
+        .filter((s) => !(s.date > todayStr && !hasCashoutData(s)))
+        .sort((a, b) => b.date.localeCompare(a.date)),
+    [shifts, todayStr],
+  );
+
+  const upcomingShifts = useMemo(
+    () =>
+      shifts
+        .filter((s) => s.date > todayStr && !hasCashoutData(s))
+        .sort((a, b) => a.date.localeCompare(b.date)),
+    [shifts, todayStr],
+  );
+
+  function renderShiftRow(shift: Shift) {
+    const job = jobs.find((j) => j.id === shift.jobId);
+    const showMeta = hasCashoutData(shift) && shift.date <= todayStr;
+    const baseline = avgEarnings > 0 ? avgEarnings : shift.grossEarnings;
+
+    return (
+      <TouchableOpacity
+        key={shift.id}
+        style={styles.shiftRow}
+        onPress={() => router.push(`/shift/${shift.id}`)}
+      >
+        <View style={styles.shiftBadge}>
+          <Ionicons name="cash-outline" size={20} color={job?.color || Colors.accent} />
+          <View style={[styles.shiftJobDot, { backgroundColor: job?.color || Colors.accent }]} />
+        </View>
+
+        <View style={styles.shiftMain}>
+          <Text style={styles.shiftDate}>{format(parseISO(shift.date), 'EEEE, MMM d')}</Text>
+          {showMeta && (
+            <Text style={styles.shiftMeta}>
+              {shift.grossEarnings > baseline * 1.5
+                ? '🔥 Carried the week'
+                : shift.grossEarnings > baseline * 1.2
+                ? '🚀 Big night'
+                : shift.grossEarnings > baseline * 0.9
+                ? '✅ Solid night'
+                : shift.grossEarnings > baseline * 0.5
+                ? '🧊 Light night'
+                : 'Rough shift'}
+            </Text>
+          )}
+        </View>
+
+        <View style={styles.shiftRight}>
+          <Text style={styles.shiftAmount}>{fmt(shift.grossEarnings)}</Text>
+          <View style={styles.shiftTipsRow}>
+            <Text style={styles.shiftTipsLabel}>{fmt(shift.tipsTotal)} tips</Text>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={styles.shiftUploadBtn}
+          onPress={() =>
+            router.push({
+              pathname: '/shift/import',
+              params: { shiftId: shift.id, date: shift.date },
+            })
+          }
+        >
+          <Ionicons name="camera-outline" size={14} color={Colors.textSecondary} />
+        </TouchableOpacity>
+        <Ionicons name="chevron-forward" size={14} color={Colors.textSubtle} />
+      </TouchableOpacity>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView 
@@ -259,62 +331,13 @@ export default function CalendarScreen() {
         </View>
 
         <View style={styles.recentSection}>
-          <Text style={styles.sectionTitle}>Recent Activity</Text>
-          {shifts.slice(0, 15).map((shift) => {
-            const job = jobs.find((j) => j.id === shift.jobId);
-            const showMeta = hasCashoutData(shift) && shift.date <= todayStr;
-            const baseline = avgEarnings > 0 ? avgEarnings : shift.grossEarnings;
-            return (
-              <TouchableOpacity
-                key={shift.id}
-                style={styles.shiftRow}
-                onPress={() => router.push(`/shift/${shift.id}`)}
-              >
-                <View style={styles.shiftBadge}>
-                  <Ionicons name="cash-outline" size={20} color={job?.color || Colors.accent} />
-                  <View style={[styles.shiftJobDot, { backgroundColor: job?.color || Colors.accent }]} />
-                </View>
+          <Text style={styles.sectionTitle}>Shifts</Text>
 
-                <View style={styles.shiftMain}>
-                  <Text style={styles.shiftDate}>
-                    {format(parseISO(shift.date), 'EEEE, MMM d')}
-                  </Text>
-                  {showMeta && (
-                    <Text style={styles.shiftMeta}>
-                      {shift.grossEarnings > baseline * 1.5
-                        ? '🔥 Carried the week'
-                        : shift.grossEarnings > baseline * 1.2
-                        ? '🚀 Big night'
-                        : shift.grossEarnings > baseline * 0.9
-                        ? '✅ Solid night'
-                        : shift.grossEarnings > baseline * 0.5
-                        ? '🧊 Light night'
-                        : 'Rough shift'}
-                    </Text>
-                  )}
-                </View>
+          {completedShifts.length > 0 && <Text style={styles.shiftGroupTitle}>Completed</Text>}
+          {completedShifts.slice(0, 12).map(renderShiftRow)}
 
-                <View style={styles.shiftRight}>
-                  <Text style={styles.shiftAmount}>{fmt(shift.grossEarnings)}</Text>
-                  <View style={styles.shiftTipsRow}>
-                    <Text style={styles.shiftTipsLabel}>{fmt(shift.tipsTotal)} tips</Text>
-                  </View>
-                </View>
-                <TouchableOpacity
-                  style={styles.shiftUploadBtn}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/shift/import',
-                      params: { shiftId: shift.id, date: shift.date },
-                    })
-                  }
-                >
-                  <Ionicons name="camera-outline" size={14} color={Colors.textSecondary} />
-                </TouchableOpacity>
-                <Ionicons name="chevron-forward" size={14} color={Colors.textSubtle} />
-              </TouchableOpacity>
-            );
-          })}
+          {upcomingShifts.length > 0 && <Text style={styles.shiftGroupTitle}>Upcoming</Text>}
+          {upcomingShifts.slice(0, 12).map(renderShiftRow)}
 
           {shifts.length === 0 && (
             <View style={styles.empty}>
@@ -644,10 +667,10 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   dayCell: {
     width: `${100 / 7}%`,
-    aspectRatio: 1,
+    aspectRatio: 0.76,
     alignItems: 'center',
     justifyContent: 'flex-start',
-    paddingTop: 6,
+    paddingTop: 4,
     borderRadius: Radius.sm,
   },
   todayCell: { backgroundColor: 'rgba(255,255,255,0.04)' },
@@ -671,6 +694,15 @@ const styles = StyleSheet.create({
   dayTotal: { fontSize: 8, color: Colors.textSubtle, marginTop: 2, fontWeight: '600' },
   recentSection: {
     paddingHorizontal: Spacing.md,
+  },
+  shiftGroupTitle: {
+    fontSize: FontSize.xs,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    marginBottom: Spacing.xs,
+    marginTop: Spacing.sm,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   shiftRow: {
     flexDirection: 'row',
