@@ -89,7 +89,7 @@ function hasCashoutData(shift: Shift) {
 
 export default function CalendarScreen() {
   const router = useRouter();
-  const { shifts, jobs } = useShiftStore();
+  const { shifts, jobs, goals } = useShiftStore();
   const { user } = useAuthStore();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [dayModal, setDayModal] = useState<{ date: string; dayShifts: Shift[] } | null>(null);
@@ -103,6 +103,16 @@ export default function CalendarScreen() {
       .filter((s) => isSameMonth(parseISO(s.date), currentMonth))
       .reduce((sum, s) => sum + s.grossEarnings, 0);
   }, [shifts, currentMonth]);
+
+  const monthlyEarningsGoal = useMemo(
+    () =>
+      goals.find((g) => g.period === 'monthly' && g.field === 'grossEarnings') ?? null,
+    [goals],
+  );
+
+  const goalTarget = monthlyEarningsGoal?.target ?? null;
+  const goalProgressPct = goalTarget ? Math.min((monthTotal / goalTarget) * 100, 100) : 0;
+  const goalRemaining = goalTarget ? Math.max(goalTarget - monthTotal, 0) : 0;
 
   const payPeriod = useMemo(
     () => getPayPeriodForDate(user?.payPeriodAnchor ?? DEFAULT_PAY_PERIOD_ANCHOR, new Date()),
@@ -120,12 +130,7 @@ export default function CalendarScreen() {
   }, [shifts]);
 
   const insight = useMemo(() => {
-    if (shifts.length === 0) return "No shifts yet. Snap a cashout to start.";
-
-    const goal = 1200;
-    const remaining = goal - monthTotal;
-
-    if (remaining <= 0) return "🎯 Goal smashed. Keep stacking.";
+    if (shifts.length === 0) return 'No shifts yet. Snap a cashout to start.';
 
     // Comparison insight
     const now = new Date();
@@ -133,23 +138,31 @@ export default function CalendarScreen() {
     const lastPeriod = { start: subDays(now, 28), end: subDays(now, 15) };
 
     const thisPeriodTotal = shifts
-      .filter(s => isWithinInterval(parseISO(s.date), thisPeriod))
+      .filter((s) => isWithinInterval(parseISO(s.date), thisPeriod))
       .reduce((sum, s) => sum + s.grossEarnings, 0);
 
     const lastPeriodTotal = shifts
-      .filter(s => isWithinInterval(parseISO(s.date), lastPeriod))
+      .filter((s) => isWithinInterval(parseISO(s.date), lastPeriod))
       .reduce((sum, s) => sum + s.grossEarnings, 0);
+
+    if (goalTarget) {
+      if (goalRemaining <= 0) return '🎯 Goal smashed. Keep stacking.';
+      if (thisPeriodTotal > lastPeriodTotal && lastPeriodTotal > 0) {
+        const pct = Math.round(((thisPeriodTotal - lastPeriodTotal) / lastPeriodTotal) * 100);
+        return `📈 Up ${pct}% from last period. Keep it rolling.`;
+      }
+      if (goalRemaining < 300) return "You're close. Finish strong.";
+      return `$${goalRemaining.toFixed(0)} to go. Pick up a shift.`;
+    }
 
     if (thisPeriodTotal > lastPeriodTotal && lastPeriodTotal > 0) {
       const pct = Math.round(((thisPeriodTotal - lastPeriodTotal) / lastPeriodTotal) * 100);
-      return `📈 Up ${pct}% from last period. Keep it rolling.`;
+      return `📈 Up ${pct}% from last period.`;
     }
 
-    if (remaining < 300) return `You're close. Finish strong.`;
-    if (shifts.length < 5 && monthTotal < 500) return `Slow month. Time to push.`;
-
-    return `$${remaining.toFixed(0)} to go. Pick up a shift.`;
-  }, [shifts, monthTotal]);
+    if (shifts.length < 5 && monthTotal < 500) return 'Slow month. Time to push.';
+    return `${shifts.length} shifts logged this month.`;
+  }, [shifts, monthTotal, goalTarget, goalRemaining]);
 
   const weeklySummary = useMemo(() => {
     const periodWindow = { start: payPeriod.start, end: payPeriod.end };
@@ -284,18 +297,24 @@ export default function CalendarScreen() {
 
             <Text style={styles.insightLine}>{insight}</Text>
 
-            <View style={styles.progressBar}>
-              <View
-                style={[
-                  styles.progressFill,
-                  { width: `${Math.min((monthTotal / 1200) * 100, 100)}%` as DimensionValue },
-                ]}
-              />
-            </View>
-            <View style={styles.progressLabels}>
-              <Text style={styles.progressText}>{Math.round((monthTotal / 1200) * 100)}% of $1,200 goal</Text>
-              <Text style={styles.remainingText}>${Math.max(1200 - monthTotal, 0).toFixed(0)} left</Text>
-            </View>
+            {goalTarget ? (
+              <>
+                <View style={styles.progressBar}>
+                  <View
+                    style={[
+                      styles.progressFill,
+                      { width: `${goalProgressPct}%` as DimensionValue },
+                    ]}
+                  />
+                </View>
+                <View style={styles.progressLabels}>
+                  <Text style={styles.progressText}>
+                    {Math.round(goalProgressPct)}% of ${goalTarget.toFixed(0)} goal
+                  </Text>
+                  <Text style={styles.remainingText}>${goalRemaining.toFixed(0)} left</Text>
+                </View>
+              </>
+            ) : null}
           </View>
 
           <View style={styles.actionRow}>
