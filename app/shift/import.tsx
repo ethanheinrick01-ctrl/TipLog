@@ -659,8 +659,14 @@ export default function ImportShiftScreen() {
           </View>
         )}
 
+        {hasResult && (
+          <TouchableOpacity style={styles.homeBtn} onPress={() => router.replace('/(tabs)')}>
+            <Text style={styles.homeBtnText}>Return to Home Screen</Text>
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity style={styles.cancelBtn} onPress={() => router.back()}>
-          <Text style={styles.cancelBtnText}>Cancel</Text>
+          <Text style={styles.cancelBtnText}>{hasResult ? 'Back' : 'Cancel'}</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -859,6 +865,17 @@ const styles = StyleSheet.create({
   shiftSaveBtnText: { color: Colors.bg, fontWeight: '700', fontSize: FontSize.sm },
   saveAllBtn: { backgroundColor: Colors.success, borderRadius: Radius.md, padding: Spacing.md, alignItems: 'center', marginTop: Spacing.sm },
   saveAllBtnText: { color: Colors.bg, fontWeight: '800', fontSize: FontSize.md },
+  homeBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.card,
+    paddingVertical: Spacing.md,
+    marginTop: Spacing.xs,
+  },
+  homeBtnText: { color: Colors.textPrimary, fontWeight: '700', fontSize: FontSize.md },
   cancelBtn: { alignItems: 'center', padding: Spacing.md },
   cancelBtnText: { color: Colors.textMuted, fontSize: FontSize.md },
   // Staff toggles
