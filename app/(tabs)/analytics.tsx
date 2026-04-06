@@ -50,13 +50,13 @@ function getInsightText(summary: PeriodSummary, filtered: Shift[]): string {
     bestGross / summary.grossEarnings > 0.6;
   if (concentrationRisk) {
     const pct = Math.round((bestGross / summary.grossEarnings) * 100);
-    return `${pct}% of earnings came from one shift — income spread is low.`;
+    return `${pct}% of earnings came from one shift - income spread is low.`;
   }
   if (summary.tipPercent >= 18) {
-    return `${fmtPct(summary.tipPercent)} tip rate this period — above average.`;
+    return `${fmtPct(summary.tipPercent)} tip rate this period - above average.`;
   }
   if (summary.hourlyAvg >= 35) {
-    return `${fmt(summary.hourlyAvg)}/hr — running high efficiency this period.`;
+    return `${fmt(summary.hourlyAvg)}/hr - running high efficiency this period.`;
   }
   const avgPerShift = summary.grossEarnings / summary.shifts;
   return `${summary.shifts} shifts · ${fmt(summary.grossEarnings)} total · ${fmt(avgPerShift)} avg per shift.`;
@@ -202,38 +202,39 @@ export default function AnalyticsScreen() {
 
             <Text style={styles.periodLabel}>{periodLabel}</Text>
 
-            {/* Insight block */}
-            <View style={styles.insightBlock}>
-              <Text style={styles.insightBlockText}>{insightText}</Text>
-            </View>
-
-            {/* Pay period comparison banner */}
-            {period === 'payperiod' && (
-              <View style={styles.compareBanner}>
-                {prevSummary.shifts === 0 ? (
-                  <Text style={[styles.compareText, { color: Colors.textMuted }]}>
-                    First active pay period
-                  </Text>
-                ) : (
-                  <>
-                    <Ionicons
-                      name={deltaPositive ? 'trending-up' : 'trending-down'}
-                      size={18}
-                      color={deltaPositive ? Colors.success : Colors.error}
-                    />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.compareText}>
-                        {deltaPositive ? '+' : ''}{fmt(delta)} vs last period
-                        <Text style={styles.compareSubText}> ({prevPP.label})</Text>
-                      </Text>
-                      <Text style={[styles.compareContextLabel, { color: deltaPositive ? Colors.success : Colors.error }]}>
-                        {deltaPositive ? 'Up from last period' : 'Down from last period'}
-                      </Text>
-                    </View>
-                  </>
-                )}
+            {/* Insight + warning split */}
+            <View style={styles.signalRow}>
+              <View style={[styles.insightBlock, styles.signalHalf]}>
+                <Text style={styles.insightBlockText}>{insightText}</Text>
               </View>
-            )}
+
+              {period === 'payperiod' && (
+                <View style={[styles.compareBanner, styles.signalHalf]}>
+                  {prevSummary.shifts === 0 ? (
+                    <Text style={[styles.compareText, { color: Colors.textMuted }]}>
+                      First active pay period
+                    </Text>
+                  ) : (
+                    <>
+                      <Ionicons
+                        name={deltaPositive ? 'trending-up' : 'trending-down'}
+                        size={18}
+                        color={deltaPositive ? Colors.success : Colors.error}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.compareText}>
+                          {deltaPositive ? '+' : ''}{fmt(delta)} vs last period
+                          <Text style={styles.compareSubText}> ({prevPP.label})</Text>
+                        </Text>
+                        <Text style={[styles.compareContextLabel, { color: deltaPositive ? Colors.success : Colors.error }]}> 
+                          {deltaPositive ? 'Up from last period' : 'Down from last period'}
+                        </Text>
+                      </View>
+                    </>
+                  )}
+                </View>
+              )}
+            </View>
 
             {/* Hero + 6-month mini chart split */}
             <View style={styles.heroCard}>
@@ -246,7 +247,7 @@ export default function AnalyticsScreen() {
                   </Text>
                   {heroMicro.length > 0 && <Text style={styles.heroMicro}>{heroMicro}</Text>}
                   {efficiencyChip && (
-                    <View style={{ marginTop: Spacing.sm }}>
+                    <View style={{ marginTop: Spacing.sm, alignSelf: 'flex-start' }}>
                       <MicroChip label={efficiencyChip} color={Colors.success} />
                     </View>
                   )}
@@ -358,14 +359,12 @@ export default function AnalyticsScreen() {
                 chip={tipOutChip ?? undefined}
               />
               <InfoCard label="Net Tips" value={fmt(summary.netTips)} accent={Colors.accent} />
-              <InfoCard label="Expenses" value={fmt(summary.expenseTotal)} accent={Colors.error} />
             </View>
 
             {/* Other */}
             <Text style={styles.sectionTitle}>Other</Text>
             <View style={styles.row}>
               <InfoCard label="Svc Charge" value={fmt(summary.serviceCharge)} accent={Colors.textSecondary} />
-              <InfoCard label="Mileage" value={`${summary.mileage.toFixed(1)} mi`} accent={Colors.textSecondary} />
               <InfoCard label="Tip In" value={fmt(summary.tipIn)} accent={Colors.success} />
             </View>
           </>
@@ -474,7 +473,7 @@ function ForecastView({ forecast }: { forecast: ReturnType<typeof buildForecast>
               />
             </View>
             <Text style={styles.dowLabel}>{day.dayName}</Text>
-            <Text style={styles.dowCount}>{day.shiftCount > 0 ? `${day.shiftCount}x` : '—'}</Text>
+            <Text style={styles.dowCount}>{day.shiftCount > 0 ? `${day.shiftCount}x` : '-'}</Text>
           </View>
         ))}
       </View>
@@ -592,6 +591,18 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     paddingHorizontal: Spacing.md,
     marginBottom: Spacing.xs,
+  },
+  signalRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  signalHalf: {
+    flex: 1,
+    marginHorizontal: 0,
+    marginBottom: 0,
+    minHeight: 52,
   },
   // Insight block
   insightBlock: {
