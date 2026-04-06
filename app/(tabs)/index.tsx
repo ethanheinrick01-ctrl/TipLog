@@ -54,7 +54,7 @@ export default function CalendarScreen() {
       .reduce((sum, s) => sum + s.grossEarnings, 0);
   }, [shifts, currentMonth]);
 
-  const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 'Ethan';
+  const firstName = user?.name?.split(' ')[0] || 'Ethan';
 
   // Last 7 days activity for the dashboard chart
   const weeklyData = useMemo(() => {
