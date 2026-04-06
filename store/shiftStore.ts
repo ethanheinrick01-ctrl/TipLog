@@ -43,6 +43,9 @@ export const useShiftStore = create<ShiftState>((set, get) => ({
   setPendingShift: (s) => set({ pendingShift: s }),
 
   loadAll: async (userId) => {
+    // Reset before every load so re-logins and user switches don't leak
+    // stale data through a gate that was left open from the previous session.
+    set({ dataReady: false, shifts: [], jobs: [], goals: [] });
     if (Platform.OS === 'web') {
       // On web, syncAll pulls from Supabase into webShifts Map — do this eagerly
       await syncAll(userId);
