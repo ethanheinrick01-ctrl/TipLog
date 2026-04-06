@@ -798,7 +798,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   uploadBtnTitle: { fontSize: 13, fontWeight: '700', color: Colors.bg },
-  uploadBtnSubtitle: { fontSize: 10, fontWeight: '500', color: 'rgba(0,0,0,0.5)', marginTop: 1 },
+  uploadBtnSubtitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(0,0,0,0.78)',
+    marginTop: 2,
+    lineHeight: 14,
+  },
   addManualBtn: {
     flex: 1,
     flexDirection: 'row',
@@ -819,7 +825,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   addManualBtnTitle: { fontSize: 13, fontWeight: '700', color: Colors.textPrimary },
-  addManualBtnSubtitle: { fontSize: 10, fontWeight: '600', color: Colors.textMuted, marginTop: 1 },
+  addManualBtnSubtitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    marginTop: 2,
+    lineHeight: 14,
+  },
   calendarSection: {
     marginBottom: Spacing.lg,
   },
