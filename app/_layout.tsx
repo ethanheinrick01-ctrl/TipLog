@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { View, ActivityIndicator } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
@@ -11,9 +12,10 @@ import { syncAll } from '../lib/sync';
 import { Colors } from '../constants/theme';
 
 export default function RootLayout() {
-  const { setSession, user } = useAuthStore();
+  const { setSession, user, loading } = useAuthStore();
   const loadAll = useShiftStore((s) => s.loadAll);
   const sync = useShiftStore((s) => s.sync);
+  const dataReady = useShiftStore((s) => s.dataReady);
 
   useEffect(() => {
     initDB();
@@ -36,6 +38,19 @@ export default function RootLayout() {
     // loadAll handles sync on web natively; on native it reads local SQLite
     loadAll(user.id);
   }, [user?.id]);
+
+  // Block render until auth resolves and initial data load completes.
+  // Without this gate, screens mount into empty jobs/shifts and useState
+  // initializers lock in stale empty values before the store settles.
+  const isReady = !loading && (!user || dataReady);
+
+  if (!isReady) {
+    return (
+      <View style={{ flex: 1, backgroundColor: Colors.bg, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator color={Colors.accent} />
+      </View>
+    );
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.bg }}>

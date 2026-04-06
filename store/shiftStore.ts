@@ -13,6 +13,7 @@ interface ShiftState {
   jobs: Job[];
   goals: Goal[];
   syncing: boolean;
+  dataReady: boolean;
   /** Pre-fill data from OCR import — cleared after new.tsx reads it */
   pendingShift: Partial<Shift> | null;
 
@@ -36,6 +37,7 @@ export const useShiftStore = create<ShiftState>((set, get) => ({
   jobs: [],
   goals: [],
   syncing: false,
+  dataReady: false,
   pendingShift: null,
 
   setPendingShift: (s) => set({ pendingShift: s }),
@@ -44,12 +46,12 @@ export const useShiftStore = create<ShiftState>((set, get) => ({
     if (Platform.OS === 'web') {
       // On web, syncAll pulls from Supabase into webShifts Map — do this eagerly
       await syncAll(userId);
-      set({ shifts: dbGetShifts(userId), jobs: db.getJobs(), goals: db.getGoals(userId) });
+      set({ shifts: dbGetShifts(userId), jobs: db.getJobs(), goals: db.getGoals(userId), dataReady: true });
     } else {
       const shifts = db.getShifts(userId);
       const jobs = db.getJobs();
       const goals = db.getGoals(userId);
-      set({ shifts, jobs, goals });
+      set({ shifts, jobs, goals, dataReady: true });
     }
   },
 
