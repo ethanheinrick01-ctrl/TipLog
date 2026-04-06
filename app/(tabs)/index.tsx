@@ -87,6 +87,12 @@ export default function CalendarScreen() {
               </View>
             </View>
 
+            <Text style={styles.insightLine}>
+              {monthTotal >= 1200 
+                ? "🎯 Goal smashed. Keep stacking." 
+                : `$${(1200 - monthTotal).toFixed(0)} left to hit your goal.`}
+            </Text>
+
             <View style={styles.progressBar}>
               <View style={[styles.progressFill, { width: '45%' }]} />
             </View>
@@ -106,7 +112,7 @@ export default function CalendarScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.uploadBtnTitle}>Automatic Mode</Text>
-                <Text style={styles.uploadBtnSubtitle}>Upload cashouts or schedules</Text>
+                <Text style={styles.uploadBtnSubtitle}>Snap a cashout. Done in seconds.</Text>
               </View>
               <Ionicons name="chevron-forward" size={14} color={Colors.textMuted} />
             </TouchableOpacity>
@@ -295,13 +301,16 @@ function Calendar({ currentMonth, shifts, jobs, expanded, onSelectDate }: {
           const isCurrMonth = expanded ? isSameMonth(day, currentMonth) : true;
           const isTdy = isToday(day);
 
+          const intensity = total > 0 ? Math.min(total / 250, 1) : 0;
+
           return (
             <Pressable
               key={dateStr}
               style={[
                 styles.dayCell,
                 !isCurrMonth && { opacity: 0.15 },
-                isTdy && styles.todayCell
+                isTdy && styles.todayCell,
+                total > 0 && { backgroundColor: `rgba(74, 222, 128, ${intensity * 0.25})` }
               ]}
               onPress={() => onSelectDate(dateStr)}
             >
@@ -397,6 +406,13 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   trendText: { fontSize: 12, color: Colors.success, fontWeight: '700' },
+  insightLine: { 
+    fontSize: FontSize.xs, 
+    color: Colors.textSecondary, 
+    fontWeight: '600',
+    marginBottom: Spacing.md,
+    fontStyle: 'italic',
+  },
   progressBar: {
     height: 6,
     backgroundColor: 'rgba(255,255,255,0.05)',
