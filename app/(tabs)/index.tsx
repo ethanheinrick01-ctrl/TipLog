@@ -26,6 +26,7 @@ import {
   addDays,
   isSameDay,
   subDays,
+  isWithinInterval,
 } from 'date-fns';
 import { Colors, Spacing, Radius, FontSize } from '../../constants/theme';
 import { useShiftStore } from '../../store/shiftStore';
@@ -54,6 +55,12 @@ export default function CalendarScreen() {
 
   const firstName = user?.name?.split(' ')[0] || 'User';
 
+  const avgEarnings = useMemo(() => {
+    if (shifts.length === 0) return 0;
+    const total = shifts.reduce((sum, s) => sum + s.grossEarnings, 0);
+    return total / shifts.length;
+  }, [shifts]);
+
   const insight = useMemo(() => {
     if (shifts.length === 0) return "No shifts yet. Snap a cashout to start.";
     
@@ -62,15 +69,57 @@ export default function CalendarScreen() {
     
     if (remaining <= 0) return "🎯 Goal smashed. Keep stacking.";
     
-    const recentShifts = [...shifts].sort((a,b) => b.grossEarnings - a.grossEarnings);
-    const bestShift = recentShifts[0];
+    // Comparison insight
+    const now = new Date();
+    const thisPeriod = { start: subDays(now, 14), end: now };
+    const lastPeriod = { start: subDays(now, 28), end: subDays(now, 15) };
     
-    if (bestShift && bestShift.grossEarnings > 250) {
-      return "Strong week. Keep the momentum.";
+    const thisPeriodTotal = shifts
+      .filter(s => isWithinInterval(parseISO(s.date), thisPeriod))
+      .reduce((sum, s) => sum + s.grossEarnings, 0);
+      
+    const lastPeriodTotal = shifts
+      .filter(s => isWithinInterval(parseISO(s.date), lastPeriod))
+      .reduce((sum, s) => sum + s.grossEarnings, 0);
+
+    if (thisPeriodTotal > lastPeriodTotal && lastPeriodTotal > 0) {
+      const pct = Math.round(((thisPeriodTotal - lastPeriodTotal) / lastPeriodTotal) * 100);
+      return `📈 Up ${pct}% from last period. Keep it rolling.`;
     }
 
-    return `$${remaining.toFixed(0)} left to hit your goal.`;
+    if (remaining < 300) return `You're close. Finish strong.`;
+    if (shifts.length < 5 && monthTotal < 500) return `Slow month. Time to push.`;
+
+    return `$${remaining.toFixed(0)} to go. Pick up a shift.`;
   }, [shifts, monthTotal]);
+
+  const weeklySummary = useMemo(() => {
+    const now = new Date();
+    const week = { start: startOfWeek(now), end: endOfWeek(now) };
+    const weeklyShifts = shifts.filter(s => isWithinInterval(parseISO(s.date), week));
+    
+    if (weeklyShifts.length === 0) return "You haven't worked this week. Room to push.";
+    
+    const total = weeklyShifts.reduce((sum, s) => sum + s.grossEarnings, 0);
+    const count = weeklyShifts.length;
+    
+    const bestShift = [...weeklyShifts].sort((a,b) => b.grossEarnings - a.grossEarnings)[0];
+    const distNote = weeklyShifts.length > 1 && bestShift.grossEarnings > (total * 0.6)
+      ? `Most of your money came from ${format(parseISO(bestShift.date), 'EEEE')}.`
+      : "";
+
+    return `${count} shift${count > 1 ? 's' : ''}, $${Math.round(total)} total. ${distNote || 'Efficient.'}`;
+  }, [shifts]);
+
+  const bestDayInPeriod = useMemo(() => {
+    const weekStart = startOfWeek(new Date());
+    const days = Array.from({ length: 14 }, (_, i) => format(addDays(subDays(weekStart, 7), i), 'yyyy-MM-dd'));
+    
+    const periodShifts = shifts.filter(s => days.includes(s.date));
+    if (periodShifts.length === 0) return null;
+    
+    return [...periodShifts].sort((a,b) => b.grossEarnings - a.grossEarnings)[0].date;
+  }, [shifts]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -169,6 +218,7 @@ export default function CalendarScreen() {
             shifts={shifts}
             jobs={jobs}
             expanded={expanded}
+            bestDay={bestDayInPeriod}
             onSelectDate={(date) => {
               const dayShifts = shifts.filter(s => s.date === date);
               if (dayShifts.length > 1) {
@@ -180,6 +230,10 @@ export default function CalendarScreen() {
               }
             }}
           />
+          <View style={styles.weeklyInsightWrapper}>
+            <Ionicons name="flash" size={12} color={Colors.accentActive} />
+            <Text style={styles.weeklyInsightText}>{weeklySummary}</Text>
+          </View>
         </View>
 
         <View style={styles.recentSection}>
@@ -202,7 +256,10 @@ export default function CalendarScreen() {
                     {format(parseISO(shift.date), 'EEEE, MMM d')}
                   </Text>
                   <Text style={styles.shiftMeta}>
-                    {shift.grossEarnings > 200 ? '🔥 Strong night' : shift.grossEarnings < 100 ? '🧊 Light night' : '✅ Solid night'}
+                    {shift.grossEarnings > avgEarnings * 1.5 ? '🔥 Carried the week' : 
+                     shift.grossEarnings > avgEarnings * 1.2 ? '🚀 Big night' :
+                     shift.grossEarnings > avgEarnings * 0.9 ? '✅ Solid night' :
+                     shift.grossEarnings > avgEarnings * 0.5 ? '🧊 Light night' : 'Rough shift'}
                   </Text>
                 </View>
 
@@ -280,12 +337,13 @@ export default function CalendarScreen() {
   );
 }
 
-function Calendar({ currentMonth, shifts, jobs, expanded, onSelectDate }: {
+function Calendar({ currentMonth, shifts, jobs, expanded, onSelectDate, bestDay }: {
   currentMonth: Date;
   shifts: Shift[];
   jobs: any[];
   expanded: boolean;
   onSelectDate: (date: string) => void;
+  bestDay: string | null;
 }) {
   const weekStart = startOfWeek(new Date());
   
@@ -316,6 +374,7 @@ function Calendar({ currentMonth, shifts, jobs, expanded, onSelectDate }: {
           const isTdy = isToday(day);
 
           const intensity = total > 0 ? Math.min(total / 250, 1) : 0;
+          const isBest = dateStr === bestDay && !expanded;
 
           return (
             <Pressable
@@ -324,13 +383,19 @@ function Calendar({ currentMonth, shifts, jobs, expanded, onSelectDate }: {
                 styles.dayCell,
                 !isCurrMonth && { opacity: 0.15 },
                 isTdy && styles.todayCell,
-                total > 0 && { backgroundColor: `rgba(74, 222, 128, ${intensity * 0.25})` }
+                total > 0 && { backgroundColor: `rgba(74, 222, 128, ${intensity * 0.25})` },
+                isBest && { borderWidth: 1, borderColor: Colors.success, backgroundColor: 'rgba(74, 222, 128, 0.15)' }
               ]}
               onPress={() => onSelectDate(dateStr)}
             >
-              <Text style={[styles.dayNum, isTdy && styles.todayNum]}>
+              <Text style={[styles.dayNum, isTdy && styles.todayNum, isBest && { color: Colors.success }]}>
                 {format(day, 'd')}
               </Text>
+              {isBest && (
+                <View style={styles.bestBadge}>
+                  <Text style={styles.bestBadgeText}>BEST</Text>
+                </View>
+              )}
               {dayShifts.length > 0 && (
                 <View style={styles.dotRow}>
                   {dayShifts.slice(0, 3).map((shift, i) => {
@@ -512,6 +577,20 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderSubtle,
   },
   calendarNavText: { fontSize: 11, fontWeight: '700', color: Colors.textSecondary },
+  weeklyInsightWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.md,
+    marginTop: Spacing.sm,
+    opacity: 0.9,
+  },
+  weeklyInsightText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
+  },
   calendarGridContainer: {
     paddingHorizontal: Spacing.xs,
   },
@@ -530,6 +609,19 @@ const styles = StyleSheet.create({
   dayNum: { fontSize: FontSize.sm, color: Colors.textSecondary, fontWeight: '500' },
   todayNum: { color: Colors.accentActive, fontWeight: '700' },
   dotRow: { flexDirection: 'row', gap: 2, marginTop: 4 },
+  bestBadge: {
+    position: 'absolute',
+    bottom: 2,
+    backgroundColor: Colors.success,
+    paddingHorizontal: 3,
+    paddingVertical: 1,
+    borderRadius: 2,
+  },
+  bestBadgeText: {
+    fontSize: 6,
+    fontWeight: '900',
+    color: Colors.bg,
+  },
   dot: { width: 4, height: 4, borderRadius: Radius.full },
   dayTotal: { fontSize: 8, color: Colors.textSubtle, marginTop: 2, fontWeight: '600' },
   recentSection: {
