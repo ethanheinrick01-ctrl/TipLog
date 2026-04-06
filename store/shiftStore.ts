@@ -70,6 +70,13 @@ export const useShiftStore = create<ShiftState>((set, get) => ({
 
     dbUpsertShift(computed);
     set({ shifts: dbGetShifts(userId) });
+
+    if (Platform.OS === 'web') {
+      // Web has no SQLite — push to Supabase immediately so it survives refresh
+      syncAll(userId).then(() => {
+        set({ shifts: dbGetShifts(userId), jobs: db.getJobs() });
+      }).catch((e) => console.warn('Post-save sync error (web):', e));
+    }
   },
 
   deleteShift: async (id) => {
@@ -98,6 +105,10 @@ export const useShiftStore = create<ShiftState>((set, get) => ({
   saveJob: (job) => {
     db.upsertJob(job);
     set({ jobs: db.getJobs() });
+    if (Platform.OS === 'web') {
+      supabase.from('jobs').upsert(job, { onConflict: 'id' })
+        .then(({ error }) => { if (error) console.warn('Job sync error (web):', error.message); });
+    }
   },
 
   deleteJob: (id) => {
