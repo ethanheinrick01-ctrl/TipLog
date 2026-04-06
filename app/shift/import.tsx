@@ -56,6 +56,7 @@ export default function ImportShiftScreen() {
   const [cashoutResult, setCashoutResult] = useState<ToastReceiptData | null>(null);
   const [cashTipsOverride, setCashTipsOverride] = useState<string>('');
   const [justSaved, setJustSaved] = useState(false);
+  const [celebration, setCelebration] = useState<string | null>(null);
   const [editingTipOuts, setEditingTipOuts] = useState(false);
   const [tipOutOverrides, setTipOutOverrides] = useState<Record<string, string>>({});
   // null = unanswered, true = yes, false = no
@@ -158,6 +159,11 @@ export default function ImportShiftScreen() {
 
   // ─── Cashout actions ─────────────────────────────────────────────────────────
 
+  function celebrate(message: string, durationMs = 1800) {
+    setCelebration(message);
+    setTimeout(() => setCelebration((prev) => (prev === message ? null : prev)), durationMs);
+  }
+
   async function handleSaveCashout() {
     if (!cashoutResult?.success) {
       webAlert('Nothing to save', 'Process a receipt first.');
@@ -182,6 +188,7 @@ export default function ImportShiftScreen() {
       );
       await saveShift(user.id, shift);
       setSaving(false);
+      setCelebration(targetShift ? 'Shift updated ✅' : 'Nice. Shift logged ✅');
       setJustSaved(true); // navigate once React settles
     } catch (e: any) {
       setSaving(false);
@@ -190,12 +197,15 @@ export default function ImportShiftScreen() {
     }
   }
 
-  // Navigate after save settles
+  // Navigate after save settles (short celebration beat first)
   useEffect(() => {
-    if (justSaved) {
+    if (!justSaved) return;
+    const t = setTimeout(() => {
       setJustSaved(false);
+      setCelebration(null);
       router.back();
-    }
+    }, 900);
+    return () => clearTimeout(t);
   }, [justSaved]);
 
   function handleOpenCashoutForm() {
@@ -219,6 +229,7 @@ export default function ImportShiftScreen() {
       const shift = buildScheduleShift(parsed);
       await saveShift(user.id, shift);
       setSavedShifts((prev) => new Set([...prev, shiftIndex]));
+      celebrate('Shift saved ✅');
     } catch (e: any) {
       webAlert('Save failed', e.message ?? 'Unknown error');
     }
@@ -240,6 +251,7 @@ export default function ImportShiftScreen() {
             await saveShift(user!.id, buildScheduleShift(scheduleResult!.shifts[i]));
             setSavedShifts((prev) => new Set([...prev, i]));
           }
+          celebrate(`All ${scheduleResult!.shifts.length} shifts saved ✅`, 2200);
         } catch (e: any) {
           webAlert('Save failed', e.message ?? 'Unknown error');
         }
@@ -659,6 +671,12 @@ export default function ImportShiftScreen() {
           </View>
         )}
 
+        {celebration && (
+          <View style={styles.celebrationCard}>
+            <Text style={styles.celebrationText}>{celebration}</Text>
+          </View>
+        )}
+
         {/* Return Home - visible during in-progress import before result is ready */}
         {!hasResult && (selectedImages.length > 0 || loading) && (
           <TouchableOpacity style={styles.homeBtn} onPress={() => router.replace('/(tabs)')}>
@@ -873,6 +891,21 @@ const styles = StyleSheet.create({
   shiftSaveBtnText: { color: Colors.bg, fontWeight: '700', fontSize: FontSize.sm },
   saveAllBtn: { backgroundColor: Colors.success, borderRadius: Radius.md, padding: Spacing.md, alignItems: 'center', marginTop: Spacing.sm },
   saveAllBtnText: { color: Colors.bg, fontWeight: '800', fontSize: FontSize.md },
+  celebrationCard: {
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.success + '55',
+    backgroundColor: Colors.success + '1f',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    marginTop: Spacing.xs,
+  },
+  celebrationText: {
+    color: Colors.success,
+    fontSize: FontSize.sm,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
   homeBtn: {
     alignItems: 'center',
     justifyContent: 'center',

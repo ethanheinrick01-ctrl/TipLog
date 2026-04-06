@@ -95,6 +95,16 @@ function formatGoalValue(value: number, field: GoalField | null): string {
   return `$${value.toFixed(0)}`;
 }
 
+function getGoalFieldLabel(field: GoalField): string {
+  if (field === 'tipsTotal') return 'Tips';
+  if (field === 'netTips') return 'Net Tips';
+  if (field === 'grossEarnings') return 'Earnings';
+  if (field === 'tipPercent') return 'Tip %';
+  if (field === 'hours') return 'Hours';
+  if (field === 'sales') return 'Sales';
+  return 'Covers';
+}
+
 export default function CalendarScreen() {
   const router = useRouter();
   const { shifts, jobs, goals } = useShiftStore();
@@ -192,6 +202,16 @@ export default function CalendarScreen() {
   const goalProgressPct = goalTarget ? Math.min((goalCurrentValue / goalTarget) * 100, 100) : 0;
   const goalRemaining = goalTarget ? Math.max(goalTarget - goalCurrentValue, 0) : 0;
 
+  const goalDisplayLabel = useMemo(() => {
+    if (!monthlyGoal) return 'your goal';
+    const raw = monthlyGoal.label?.trim() ?? '';
+    const tooGeneric = /^(month|monthly|week|weekly|day|daily)$/i.test(raw);
+    if (!raw || tooGeneric) {
+      return `Monthly ${getGoalFieldLabel(monthlyGoal.field)} goal`;
+    }
+    return raw;
+  }, [monthlyGoal]);
+
   const payPeriod = useMemo(
     () => getPayPeriodForDate(user?.payPeriodAnchor ?? DEFAULT_PAY_PERIOD_ANCHOR, new Date()),
     [user?.payPeriodAnchor],
@@ -217,8 +237,8 @@ export default function CalendarScreen() {
         : `${workedCount} shift${workedCount === 1 ? '' : 's'} worked`;
 
     if (goalTarget && monthlyGoal) {
-      if (goalRemaining <= 0) return `${workedText} · 🎯 ${monthlyGoal.label} hit.`;
-      return `${workedText} · ${formatGoalValue(goalRemaining, monthlyGoal.field)} left on ${monthlyGoal.label}.`;
+      if (goalRemaining <= 0) return `${workedText} · 🎯 ${goalDisplayLabel} hit.`;
+      return `${workedText} · ${formatGoalValue(goalRemaining, monthlyGoal.field)} left to hit ${goalDisplayLabel}.`;
     }
 
     // Comparison insight (worked shifts only)
@@ -250,7 +270,7 @@ export default function CalendarScreen() {
     }
 
     return `${workedText}.`;
-  }, [monthShifts, monthWorkedShifts, goalTarget, goalRemaining, monthlyGoal, shifts, todayStr]);
+  }, [monthShifts, monthWorkedShifts, goalTarget, goalRemaining, monthlyGoal, goalDisplayLabel, shifts, todayStr]);
 
   const weeklySummary = useMemo(() => {
     const periodWindow = { start: payPeriod.start, end: payPeriod.end };
@@ -303,6 +323,38 @@ export default function CalendarScreen() {
         .sort((a, b) => a.date.localeCompare(b.date)),
     [shifts, todayStr],
   );
+
+  const nextMoveText = useMemo(() => {
+    if (monthWorkedShifts.length === 0) {
+      return 'Log your first shift this month to unlock trend coaching.';
+    }
+
+    if (goalTarget && monthlyGoal && goalRemaining > 0) {
+      const avgForGoal = monthWorkedShifts.length > 0 ? goalCurrentValue / monthWorkedShifts.length : 0;
+      if (avgForGoal > 0 && ['tipsTotal', 'netTips', 'grossEarnings', 'sales'].includes(monthlyGoal.field)) {
+        const shiftsNeeded = Math.max(1, Math.ceil(goalRemaining / avgForGoal));
+        return `At current pace: ~${shiftsNeeded} more shift${shiftsNeeded === 1 ? '' : 's'} to hit ${goalDisplayLabel}.`;
+      }
+      return `You're ${formatGoalValue(goalRemaining, monthlyGoal.field)} away from ${goalDisplayLabel}.`;
+    }
+
+    if (upcomingShifts.length > 0) {
+      const next = upcomingShifts[0];
+      const when = format(parseISO(next.date), 'EEE, MMM d');
+      const at = next.clockIn ? ` at ${fmt12h(next.clockIn)}` : '';
+      return `Next up: ${when}${at}. Use Automatic Mode right after clock-out.`;
+    }
+
+    return 'No shift scheduled yet — add one now so your week has a target.';
+  }, [
+    monthWorkedShifts,
+    goalTarget,
+    monthlyGoal,
+    goalRemaining,
+    goalCurrentValue,
+    goalDisplayLabel,
+    upcomingShifts,
+  ]);
 
   function renderShiftRow(shift: Shift) {
     const job = jobs.find((j) => j.id === shift.jobId);
@@ -444,6 +496,11 @@ export default function CalendarScreen() {
                 </View>
               </>
             ) : null}
+          </View>
+
+          <View style={styles.nextMoveCard}>
+            <Ionicons name="sparkles-outline" size={14} color={Colors.accentActive} />
+            <Text style={styles.nextMoveText}>{nextMoveText}</Text>
           </View>
 
           <View style={styles.actionRow}>
@@ -774,6 +831,25 @@ const styles = StyleSheet.create({
   },
   progressText: { fontSize: FontSize.xs, color: Colors.textSecondary, fontWeight: '600' },
   remainingText: { fontSize: FontSize.xs, color: Colors.textMuted },
+  nextMoveCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  nextMoveText: {
+    flex: 1,
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
+  },
   actionRow: {
     flexDirection: 'row',
     gap: Spacing.sm,
