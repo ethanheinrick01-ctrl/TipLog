@@ -37,6 +37,15 @@ import { Shift } from '../../lib/types';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+function hasCashoutData(shift: Shift) {
+  return (
+    shift.grossEarnings > 0 ||
+    shift.tipsTotal > 0 ||
+    shift.sales > 0 ||
+    !!(shift.clockOut && shift.clockOut.trim())
+  );
+}
+
 export default function CalendarScreen() {
   const router = useRouter();
   const { shifts, jobs } = useShiftStore();
@@ -55,6 +64,14 @@ export default function CalendarScreen() {
   }, [shifts, currentMonth]);
 
   const firstName = user?.name?.split(' ')[0] || 'User';
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+
+  const avgEarnings = useMemo(() => {
+    const completed = shifts.filter(hasCashoutData);
+    if (completed.length === 0) return 0;
+    const total = completed.reduce((sum, s) => sum + s.grossEarnings, 0);
+    return total / completed.length;
+  }, [shifts]);
 
   const insight = useMemo(() => {
     if (shifts.length === 0) return "No shifts yet. Snap a cashout to start.";
@@ -240,6 +257,8 @@ export default function CalendarScreen() {
           <Text style={styles.sectionTitle}>Recent Activity</Text>
           {shifts.slice(0, 15).map((shift) => {
             const job = jobs.find((j) => j.id === shift.jobId);
+            const showMeta = hasCashoutData(shift) && shift.date <= todayStr;
+            const baseline = avgEarnings > 0 ? avgEarnings : shift.grossEarnings;
             return (
               <TouchableOpacity
                 key={shift.id}
@@ -255,6 +274,19 @@ export default function CalendarScreen() {
                   <Text style={styles.shiftDate}>
                     {format(parseISO(shift.date), 'EEEE, MMM d')}
                   </Text>
+                  {showMeta && (
+                    <Text style={styles.shiftMeta}>
+                      {shift.grossEarnings > baseline * 1.5
+                        ? '🔥 Carried the week'
+                        : shift.grossEarnings > baseline * 1.2
+                        ? '🚀 Big night'
+                        : shift.grossEarnings > baseline * 0.9
+                        ? '✅ Solid night'
+                        : shift.grossEarnings > baseline * 0.5
+                        ? '🧊 Light night'
+                        : 'Rough shift'}
+                    </Text>
+                  )}
                 </View>
 
                 <View style={styles.shiftRight}>
@@ -665,6 +697,7 @@ const styles = StyleSheet.create({
   },
   shiftMain: { flex: 1 },
   shiftDate: { fontSize: FontSize.md, color: Colors.textPrimary, fontWeight: '600' },
+  shiftMeta: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: 2 },
   shiftRight: { alignItems: 'flex-end' },
   shiftUploadBtn: {
     width: 30,
