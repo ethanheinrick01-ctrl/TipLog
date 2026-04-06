@@ -4,7 +4,7 @@
  * Unified import screen — photograph Toast washout slips or HotSchedules
  * schedules, run GPT-4o OCR, review parsed results, save shifts.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,7 +18,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Colors, Spacing, Radius, FontSize } from '../../constants/theme';
 import { defaultOcrAdapter, ToastReceiptData } from '../../lib/receiptImport';
@@ -28,11 +28,21 @@ import { useAuthStore } from '../../store/authStore';
 import { computeShift, fmt12h } from '../../lib/calculations';
 import { showConfirm } from '../../lib/webAlert';
 import { TIP_OUT_CATEGORIES } from '../../components/ShiftForm';
+import { Shift } from '../../lib/types';
 
 export default function ImportShiftScreen() {
   const router = useRouter();
-  const { saveShift, jobs } = useShiftStore();
+  const params = useLocalSearchParams<{ shiftId?: string; date?: string }>();
+  const { saveShift, jobs, shifts } = useShiftStore();
   const { user } = useAuthStore();
+  const targetShiftId = typeof params.shiftId === 'string' ? params.shiftId : undefined;
+  const targetDateParam = typeof params.date === 'string' ? params.date : undefined;
+  const targetShift = useMemo(
+    () => (targetShiftId ? shifts.find((s) => s.id === targetShiftId) ?? null : null),
+    [targetShiftId, shifts],
+  );
+  const lockCashoutMode = !!targetShiftId;
+  const targetShiftDate = targetShift?.date ?? targetDateParam;
   // Use user's default job, or first available job, for imports that don't have a job set
   const defaultJobId = jobs[0]?.id ?? '';
 
@@ -150,7 +160,13 @@ export default function ImportShiftScreen() {
     }
     try {
       setSaving(true);
-      const shift = buildCashoutShift(cashoutResult, parseFloat(cashTipsOverride || '0'), getEffectiveTipOuts());
+      const shift = buildCashoutShift(
+        cashoutResult,
+        parseFloat(cashTipsOverride || '0'),
+        getEffectiveTipOuts(),
+        targetShift,
+        targetShiftDate,
+      );
       await saveShift(user.id, shift);
       setSaving(false);
       setJustSaved(true); // navigate once React settles
@@ -264,7 +280,13 @@ export default function ImportShiftScreen() {
 
   // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-  function buildCashoutShift(r: ToastReceiptData, cashTips = 0, overrides: Record<string, string> = {}) {
+  function buildCashoutShift(
+    r: ToastReceiptData,
+    cashTips = 0,
+    overrides: Record<string, string> = {},
+    existingShift?: Shift | null,
+    forcedDate?: string,
+  ) {
     // Use user-edited overrides if present, otherwise fall back to OCR values
     const tipOutByCategory: Record<string, number> = {};
     Object.entries(overrides).forEach(([k, v]) => { tipOutByCategory[k] = parseFloat(v) || 0; });
@@ -273,31 +295,32 @@ export default function ImportShiftScreen() {
     }
     const computed = computeShift({
       tipsCash: cashTips,
-      tipsCredit: r.tipsCredit ?? 0,
-      tipsWithheld: r.tipsWithheld ?? 0,
-      sales: r.sales ?? 0,
-      covers: r.covers ?? 0,
+      tipsCredit: r.tipsCredit ?? existingShift?.tipsCredit ?? 0,
+      tipsWithheld: r.tipsWithheld ?? existingShift?.tipsWithheld ?? 0,
+      sales: r.sales ?? existingShift?.sales ?? 0,
+      covers: r.covers ?? existingShift?.covers ?? 0,
       tipOutByCategory,
-      clockIn: r.clockIn ?? '',
-      clockOut: r.clockOut ?? '',
+      clockIn: r.clockIn ?? existingShift?.clockIn ?? '',
+      clockOut: r.clockOut ?? existingShift?.clockOut ?? '',
     });
     return {
-      date: r.date ?? new Date().toISOString().slice(0, 10),
-      jobId: defaultJobId,
-      clockIn: r.clockIn ?? '17:00',
-      clockOut: r.clockOut ?? '23:00',
+      id: existingShift?.id,
+      date: forcedDate ?? existingShift?.date ?? r.date ?? new Date().toISOString().slice(0, 10),
+      jobId: existingShift?.jobId ?? defaultJobId,
+      clockIn: r.clockIn ?? existingShift?.clockIn ?? '17:00',
+      clockOut: r.clockOut ?? existingShift?.clockOut ?? '23:00',
       tipsCash: cashTips,
-      tipsCredit: r.tipsCredit ?? 0,
-      tipsWithheld: r.tipsWithheld ?? 0,
-      sales: r.sales ?? 0,
-      covers: r.covers ?? 0,
+      tipsCredit: r.tipsCredit ?? existingShift?.tipsCredit ?? 0,
+      tipsWithheld: r.tipsWithheld ?? existingShift?.tipsWithheld ?? 0,
+      sales: r.sales ?? existingShift?.sales ?? 0,
+      covers: r.covers ?? existingShift?.covers ?? 0,
       tipOutByCategory,
-      tipIn: 0,
-      wage: 2.13,
-      serviceCharge: 0,
-      mileage: 0,
-      notes: '',
-      expenses: [],
+      tipIn: existingShift?.tipIn ?? 0,
+      wage: existingShift?.wage ?? 2.13,
+      serviceCharge: existingShift?.serviceCharge ?? 0,
+      mileage: existingShift?.mileage ?? 0,
+      notes: existingShift?.notes ?? '',
+      expenses: existingShift?.expenses ?? [],
       ...computed,
     };
   }
@@ -349,19 +372,29 @@ export default function ImportShiftScreen() {
           >
             <Text style={[styles.toggleBtnText, mode === 'cashout' && styles.toggleBtnTextActive]}>💰 Cashout</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.toggleBtn, mode === 'schedule' && styles.toggleBtnActive]}
-            onPress={() => handleModeChange('schedule')}
-          >
-            <Text style={[styles.toggleBtnText, mode === 'schedule' && styles.toggleBtnTextActive]}>📅 Schedule</Text>
-          </TouchableOpacity>
+          {!lockCashoutMode && (
+            <TouchableOpacity
+              style={[styles.toggleBtn, mode === 'schedule' && styles.toggleBtnActive]}
+              onPress={() => handleModeChange('schedule')}
+            >
+              <Text style={[styles.toggleBtnText, mode === 'schedule' && styles.toggleBtnTextActive]}>📅 Schedule</Text>
+            </TouchableOpacity>
+          )}
         </View>
+
+        {targetShiftDate && (
+          <View style={styles.targetShiftBanner}>
+            <Text style={styles.targetShiftBannerText}>Uploading cashout for {fmtDateShort(targetShiftDate)}</Text>
+          </View>
+        )}
 
         {/* Hint */}
         <View style={styles.hint}>
           <Text style={styles.hintText}>
             {mode === 'cashout'
-              ? 'Photograph or select up to 3 Toast washout slips. GPT-4o will read all the numbers and pre-fill your shift.'
+              ? targetShiftDate
+                ? `Upload a Toast cashout for ${fmtDateShort(targetShiftDate)} and we'll update that shift.`
+                : 'Photograph or select up to 3 Toast washout slips. GPT-4o will read all the numbers and pre-fill your shift.'
               : 'Photograph or select your HotSchedules weekly view. GPT-4o will extract all shifts and pre-fill them.'}
           </Text>
         </View>
@@ -506,7 +539,11 @@ export default function ImportShiftScreen() {
             )}
             <View style={styles.resultActions}>
               <TouchableOpacity style={styles.saveBtn} onPress={handleSaveCashout} disabled={saving}>
-                {saving ? <ActivityIndicator color={Colors.textPrimary} size="small" /> : <Text style={styles.saveBtnText}>Save Shift</Text>}
+                {saving ? (
+                  <ActivityIndicator color={Colors.textPrimary} size="small" />
+                ) : (
+                  <Text style={styles.saveBtnText}>{targetShift ? 'Update Shift' : 'Save Shift'}</Text>
+                )}
               </TouchableOpacity>
               <TouchableOpacity style={styles.editBtn} onPress={handleOpenCashoutForm}>
                 <Text style={styles.editBtnText}>Edit Before Saving</Text>
@@ -684,6 +721,20 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   hintText: { color: Colors.textSecondary, fontSize: FontSize.sm, textAlign: 'center', lineHeight: 20 },
+  targetShiftBanner: {
+    backgroundColor: Colors.card,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
+    padding: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  targetShiftBannerText: {
+    color: Colors.textSecondary,
+    fontSize: FontSize.sm,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
   previewScroll: { marginBottom: Spacing.md },
   preview: { width: 160, height: 220, borderRadius: Radius.md, marginRight: Spacing.sm, backgroundColor: Colors.surface },
   buttonRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },

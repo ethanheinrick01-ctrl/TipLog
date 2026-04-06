@@ -6,6 +6,7 @@ import {
   ScrollView,
   Pressable,
   Modal,
+  type DimensionValue,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -54,12 +55,6 @@ export default function CalendarScreen() {
   }, [shifts, currentMonth]);
 
   const firstName = user?.name?.split(' ')[0] || 'User';
-
-  const avgEarnings = useMemo(() => {
-    if (shifts.length === 0) return 0;
-    const total = shifts.reduce((sum, s) => sum + s.grossEarnings, 0);
-    return total / shifts.length;
-  }, [shifts]);
 
   const insight = useMemo(() => {
     if (shifts.length === 0) return "No shifts yet. Snap a cashout to start.";
@@ -157,7 +152,12 @@ export default function CalendarScreen() {
             <Text style={styles.insightLine}>{insight}</Text>
 
             <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: Math.min((monthTotal / 1200) * 100, 100) + '%' }]} />
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${Math.min((monthTotal / 1200) * 100, 100)}%` as DimensionValue },
+                ]}
+              />
             </View>
             <View style={styles.progressLabels}>
               <Text style={styles.progressText}>{Math.round((monthTotal / 1200) * 100)}% of $1,200 goal</Text>
@@ -255,12 +255,6 @@ export default function CalendarScreen() {
                   <Text style={styles.shiftDate}>
                     {format(parseISO(shift.date), 'EEEE, MMM d')}
                   </Text>
-                  <Text style={styles.shiftMeta}>
-                    {shift.grossEarnings > avgEarnings * 1.5 ? '🔥 Carried the week' : 
-                     shift.grossEarnings > avgEarnings * 1.2 ? '🚀 Big night' :
-                     shift.grossEarnings > avgEarnings * 0.9 ? '✅ Solid night' :
-                     shift.grossEarnings > avgEarnings * 0.5 ? '🧊 Light night' : 'Rough shift'}
-                  </Text>
                 </View>
 
                 <View style={styles.shiftRight}>
@@ -269,6 +263,17 @@ export default function CalendarScreen() {
                     <Text style={styles.shiftTipsLabel}>{fmt(shift.tipsTotal)} tips</Text>
                   </View>
                 </View>
+                <TouchableOpacity
+                  style={styles.shiftUploadBtn}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/shift/import',
+                      params: { shiftId: shift.id, date: shift.date },
+                    })
+                  }
+                >
+                  <Ionicons name="camera-outline" size={14} color={Colors.textSecondary} />
+                </TouchableOpacity>
                 <Ionicons name="chevron-forward" size={14} color={Colors.textSubtle} />
               </TouchableOpacity>
             );
@@ -660,8 +665,17 @@ const styles = StyleSheet.create({
   },
   shiftMain: { flex: 1 },
   shiftDate: { fontSize: FontSize.md, color: Colors.textPrimary, fontWeight: '600' },
-  shiftMeta: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: 2 },
   shiftRight: { alignItems: 'flex-end' },
+  shiftUploadBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   shiftAmount: { fontSize: FontSize.lg, color: Colors.textPrimary, fontWeight: '700' },
   shiftTipsRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   shiftTipsLabel: { fontSize: 10, color: Colors.success, fontWeight: '700' },
