@@ -56,7 +56,6 @@ export default function CalendarScreen() {
 
   const firstName = user?.name?.split(' ')[0] || 'Ethan';
 
-  // Last 7 days activity for the dashboard chart
   const weeklyData = useMemo(() => {
     const today = new Date();
     return Array.from({ length: 7 }, (_, i) => {
@@ -68,7 +67,7 @@ export default function CalendarScreen() {
 
       return {
         value: dailyTotal,
-        label: format(date, 'E')[0], // 'S', 'M', 'T', etc.
+        label: format(date, 'E')[0],
         frontColor: dailyTotal > 0 ? Colors.success : 'rgba(255,255,255,0.05)',
         gradientColor: dailyTotal > 0 ? '#10b981' : 'rgba(255,255,255,0.02)',
       };
@@ -438,7 +437,7 @@ const styles = StyleSheet.create({
   chartWrapper: {
     marginVertical: Spacing.md,
     alignItems: 'center',
-    marginLeft: -20, // offset chart internal padding
+    marginLeft: -20,
   },
   progressBar: {
     height: 6,
@@ -556,8 +555,6 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     marginBottom: Spacing.md,
     gap: Spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   shiftBadge: {
     width: 48,
