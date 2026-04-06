@@ -433,7 +433,7 @@ export default function CalendarScreen() {
               onPress={() => router.push('/shift/import')}
             >
               <View style={styles.uploadIconContainer}>
-                <Ionicons name="camera" size={20} color={Colors.textPrimary} />
+                <Ionicons name="camera" size={20} color={Colors.bg} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.uploadBtnTitle}>Automatic Mode</Text>
@@ -447,7 +447,7 @@ export default function CalendarScreen() {
               onPress={() => router.push('/shift/new')}
             >
               <View style={styles.addIconContainer}>
-                <Ionicons name="add" size={20} color={Colors.bg} />
+                <Ionicons name="add" size={20} color={Colors.textPrimary} />
               </View>
               <View>
                 <Text style={styles.addManualBtnTitle}>Manual Mode</Text>
@@ -763,9 +763,9 @@ const styles = StyleSheet.create({
     flex: 1.4,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: Colors.textPrimary,
     borderWidth: 1,
-    borderColor: Colors.borderSubtle,
+    borderColor: 'rgba(255,255,255,0.05)',
     borderRadius: Radius.md,
     padding: Spacing.sm,
     gap: Spacing.sm,
@@ -774,17 +774,19 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: Radius.sm,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  uploadBtnTitle: { fontSize: 13, fontWeight: '700', color: Colors.textPrimary },
-  uploadBtnSubtitle: { fontSize: 10, fontWeight: '500', color: Colors.textMuted, marginTop: 1 },
+  uploadBtnTitle: { fontSize: 13, fontWeight: '700', color: Colors.bg },
+  uploadBtnSubtitle: { fontSize: 10, fontWeight: '500', color: 'rgba(0,0,0,0.5)', marginTop: 1 },
   addManualBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.textPrimary,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
     borderRadius: Radius.md,
     padding: Spacing.sm,
     gap: Spacing.sm,
@@ -793,12 +795,12 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: Radius.sm,
-    backgroundColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  addManualBtnTitle: { fontSize: 13, fontWeight: '700', color: Colors.bg },
-  addManualBtnSubtitle: { fontSize: 10, fontWeight: '600', color: 'rgba(0,0,0,0.5)', marginTop: 1 },
+  addManualBtnTitle: { fontSize: 13, fontWeight: '700', color: Colors.textPrimary },
+  addManualBtnSubtitle: { fontSize: 10, fontWeight: '600', color: Colors.textMuted, marginTop: 1 },
   calendarSection: {
     marginBottom: Spacing.lg,
   },
