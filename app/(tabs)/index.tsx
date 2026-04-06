@@ -52,6 +52,8 @@ export default function CalendarScreen() {
       .reduce((sum, s) => sum + s.grossEarnings, 0);
   }, [shifts, currentMonth]);
 
+  const firstName = user?.name?.split(' ')[0] || 'User';
+
   const insight = useMemo(() => {
     if (shifts.length === 0) return "No shifts yet. Snap a cashout to start.";
     
@@ -60,12 +62,11 @@ export default function CalendarScreen() {
     
     if (remaining <= 0) return "🎯 Goal smashed. Keep stacking.";
     
-    // Check if a specific day carried the week
-    const recentShifts = shifts.slice(0, 7);
-    const bestShift = [...recentShifts].sort((a, b) => b.grossEarnings - a.grossEarnings)[0];
+    const recentShifts = [...shifts].sort((a,b) => b.grossEarnings - a.grossEarnings);
+    const bestShift = recentShifts[0];
     
-    if (bestShift && bestShift.grossEarnings > 200) {
-      return `${format(parseISO(bestShift.date), 'EEEE')} carried your week.`;
+    if (bestShift && bestShift.grossEarnings > 250) {
+      return "Strong week. Keep the momentum.";
     }
 
     return `$${remaining.toFixed(0)} left to hit your goal.`;
@@ -107,11 +108,11 @@ export default function CalendarScreen() {
             <Text style={styles.insightLine}>{insight}</Text>
 
             <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: '45%' }]} />
+              <View style={[styles.progressFill, { width: Math.min((monthTotal / 1200) * 100, 100) + '%' }]} />
             </View>
             <View style={styles.progressLabels}>
-              <Text style={styles.progressText}>45% of $1,200 goal</Text>
-              <Text style={styles.remainingText}>${(1200 - monthTotal).toFixed(0)} left</Text>
+              <Text style={styles.progressText}>{Math.round((monthTotal / 1200) * 100)}% of $1,200 goal</Text>
+              <Text style={styles.remainingText}>${Math.max(1200 - monthTotal, 0).toFixed(0)} left</Text>
             </View>
           </View>
 
