@@ -90,13 +90,13 @@ export default function CalendarScreen() {
           style={styles.addBtn}
           onPress={() => router.push('/shift/new')}
         >
-          <Ionicons name="add" size={24} color={Colors.bg} />
+          <Ionicons name="add" size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.scanBtn}
           onPress={() => router.push('/shift/import')}
         >
-          <Ionicons name="camera" size={20} color={Colors.bg} />
+          <Ionicons name="camera" size={20} color={Colors.textSecondary} />
         </TouchableOpacity>
       </View>
 
@@ -242,7 +242,7 @@ export default function CalendarScreen() {
                   router.push({ pathname: '/shift/new', params: { date: dayModal.date } });
                 }}
               >
-                <Ionicons name="add" size={18} color={Colors.bg} />
+                <Ionicons name="add" size={18} color={Colors.textPrimary} />
                 <Text style={styles.modalAddText}>Add Another Shift</Text>
               </TouchableOpacity>
             </View>
@@ -263,8 +263,8 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.sm,
     paddingBottom: Spacing.md,
   },
-  greeting: { fontSize: FontSize.sm, color: Colors.textSecondary, marginBottom: 2 },
-  monthTotal: { fontSize: FontSize.xl, fontWeight: '700', color: Colors.textPrimary },
+  greeting: { fontSize: FontSize.sm, color: Colors.textMuted, marginBottom: 2 },
+  monthTotal: { fontSize: FontSize.xxl, fontWeight: '600', color: Colors.textPrimary },
   addBtn: {
     width: 44,
     height: 44,
@@ -277,7 +277,9 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: Radius.full,
-    backgroundColor: Colors.success,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -288,9 +290,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     marginBottom: Spacing.sm,
   },
-  monthLabel: { fontSize: FontSize.lg, fontWeight: '600', color: Colors.textPrimary },
+  monthLabel: { fontSize: FontSize.xl, fontWeight: '500', color: Colors.textPrimary },
   dayLabels: { flexDirection: 'row', paddingHorizontal: Spacing.xs, marginBottom: Spacing.xs },
-  dayLabel: { flex: 1, textAlign: 'center', fontSize: FontSize.xs, color: Colors.textMuted, fontWeight: '600' },
+  dayLabel: { flex: 1, textAlign: 'center', fontSize: FontSize.xs, color: Colors.textSubtle, fontWeight: '600' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: Spacing.xs },
   dayCell: {
     width: `${100 / 7}%`,
@@ -302,47 +304,49 @@ const styles = StyleSheet.create({
   },
   todayCell: { backgroundColor: Colors.accentSoft },
   dayNum: { fontSize: FontSize.sm, color: Colors.textSecondary, fontWeight: '500' },
-  todayNum: { color: Colors.accent, fontWeight: '700' },
+  todayNum: { color: Colors.accentActive, fontWeight: '700' },
   dotRow: { flexDirection: 'row', gap: 2, marginTop: 2 },
   dot: { width: 5, height: 5, borderRadius: Radius.full },
-  dayTotal: { fontSize: 9, color: Colors.textSecondary, marginTop: 1 },
+  dayTotal: { fontSize: 9, color: Colors.textSubtle, marginTop: 1 },
   section: { marginTop: Spacing.lg, paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl },
-  sectionTitle: { fontSize: FontSize.md, fontWeight: '700', color: Colors.textPrimary, marginBottom: Spacing.sm },
+  sectionTitle: { fontSize: FontSize.sm, fontWeight: '500', color: Colors.textMuted, marginBottom: Spacing.sm },
   shiftRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
     borderRadius: Radius.md,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
     gap: Spacing.sm,
   },
-  jobDot: { width: 10, height: 10, borderRadius: Radius.full },
+  jobDot: { width: 8, height: 8, borderRadius: Radius.full },
   shiftInfo: { flex: 1 },
-  shiftDate: { fontSize: FontSize.md, color: Colors.textPrimary, fontWeight: '600' },
+  shiftDate: { fontSize: FontSize.md, color: Colors.textPrimary, fontWeight: '500' },
   shiftJob: { fontSize: FontSize.sm, color: Colors.textSecondary, marginTop: 2 },
   shiftEarnings: { alignItems: 'flex-end' },
-  shiftTotal: { fontSize: FontSize.md, color: Colors.accent, fontWeight: '700' },
-  shiftTips: { fontSize: FontSize.xs, color: Colors.textSecondary, marginTop: 2 },
+  shiftTotal: { fontSize: FontSize.md, color: Colors.accentActive, fontWeight: '600' },
+  shiftTips: { fontSize: FontSize.xs, color: Colors.textSubtle, marginTop: 2 },
   empty: { alignItems: 'center', paddingVertical: Spacing.xxl, gap: Spacing.md },
-  emptyText: { color: Colors.textSecondary, textAlign: 'center', fontSize: FontSize.md },
+  emptyText: { color: Colors.textMuted, textAlign: 'center', fontSize: FontSize.md },
   // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.85)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
-    backgroundColor: Colors.surface,
-    borderTopLeftRadius: Radius.xl,
-    borderTopRightRadius: Radius.xl,
+    backgroundColor: Colors.card,
+    borderTopLeftRadius: Radius.lg,
+    borderTopRightRadius: Radius.lg,
     padding: Spacing.lg,
     paddingBottom: Spacing.xxl,
   },
   modalHandle: {
-    width: 40,
-    height: 4,
-    backgroundColor: Colors.border,
+    width: 32,
+    height: 3,
+    backgroundColor: Colors.borderSubtle,
     borderRadius: 2,
     alignSelf: 'center',
     marginBottom: Spacing.md,
@@ -360,7 +364,7 @@ const styles = StyleSheet.create({
   },
   modalShiftName: { fontSize: FontSize.md, fontWeight: '600', color: Colors.textPrimary },
   modalShiftSub: { fontSize: FontSize.sm, color: Colors.textSecondary, marginTop: 2 },
-  modalShiftEarnings: { fontSize: FontSize.md, fontWeight: '700', color: Colors.accent },
+  modalShiftEarnings: { fontSize: FontSize.md, fontWeight: '600', color: Colors.accentActive },
   modalAddBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -371,5 +375,5 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     marginTop: Spacing.sm,
   },
-  modalAddText: { color: Colors.bg, fontWeight: '700', fontSize: FontSize.md },
+  modalAddText: { color: Colors.textPrimary, fontWeight: '600', fontSize: FontSize.md },
 });

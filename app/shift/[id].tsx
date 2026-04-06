@@ -71,7 +71,7 @@ export default function ShiftDetailScreen() {
             </View>
             <View style={{ flexDirection: 'row', gap: Spacing.md }}>
               <TouchableOpacity onPress={() => router.push(`/shift/edit/${shift!.id}`)}>
-                <Ionicons name="pencil-outline" size={22} color={Colors.accent} />
+                <Ionicons name="pencil-outline" size={22} color={Colors.accentActive} />
               </TouchableOpacity>
               <TouchableOpacity onPress={handleDelete}>
                 <Ionicons name="trash-outline" size={22} color={Colors.error} />
@@ -214,7 +214,9 @@ function Row({
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
   hero: {
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
     margin: Spacing.md,
     borderRadius: Radius.lg,
     padding: Spacing.lg,
@@ -229,14 +231,14 @@ const styles = StyleSheet.create({
   jobRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
   jobDot: { width: 8, height: 8, borderRadius: Radius.full },
   jobName: { fontSize: FontSize.sm, color: Colors.textSecondary },
-  heroValue: { fontSize: 48, fontWeight: '900', color: Colors.accent },
-  heroLabel: { fontSize: FontSize.sm, color: Colors.textSecondary, marginBottom: Spacing.md },
+  heroValue: { fontSize: 44, fontWeight: '600', color: Colors.accentActive, letterSpacing: -1 },
+  heroLabel: { fontSize: FontSize.sm, color: Colors.textMuted, marginBottom: Spacing.md },
   heroStats: { flexDirection: 'row', justifyContent: 'space-around' },
-  heroStatValue: { fontSize: FontSize.lg, fontWeight: '700', color: Colors.textPrimary },
-  heroStatLabel: { fontSize: FontSize.xs, color: Colors.textMuted },
+  heroStatValue: { fontSize: FontSize.lg, fontWeight: '600', color: Colors.textPrimary },
+  heroStatLabel: { fontSize: FontSize.xs, color: Colors.textSubtle },
   sectionTitle: {
     fontSize: FontSize.xs,
-    fontWeight: '700',
+    fontWeight: '600',
     color: Colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 1,
@@ -248,24 +250,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.sm + 4,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: Colors.borderSubtle,
   },
-  rowLabel: { fontSize: FontSize.md, color: Colors.textSecondary },
-  rowValue: { fontSize: FontSize.md, color: Colors.textPrimary },
+  rowLabel: { fontSize: FontSize.md, color: Colors.textSecondary, fontWeight: '500' },
+  rowValue: { fontSize: FontSize.md, color: Colors.textPrimary, fontWeight: '500' },
   notesCard: {
     margin: Spacing.md,
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
     padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
   },
   notesText: { fontSize: FontSize.md, color: Colors.textSecondary, lineHeight: 22 },
   syncRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 4,
+    gap: Spacing.xs,
     marginTop: Spacing.lg,
   },
   syncText: { fontSize: FontSize.xs, color: Colors.textMuted },

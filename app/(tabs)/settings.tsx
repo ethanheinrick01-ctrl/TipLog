@@ -267,7 +267,7 @@ export default function SettingsScreen() {
               disabled={anchorSaving}
             >
               {anchorSaving
-                ? <ActivityIndicator size="small" color={Colors.bg} />
+                ? <ActivityIndicator size="small" color={Colors.textPrimary} />
                 : <Text style={styles.anchorSaveBtnText}>Set</Text>}
             </TouchableOpacity>
           </View>
@@ -285,8 +285,8 @@ export default function SettingsScreen() {
             <Switch
               value={reminderEnabled}
               onValueChange={handleReminderToggle}
-              trackColor={{ false: Colors.border, true: Colors.accentDim }}
-              thumbColor={reminderEnabled ? Colors.accent : Colors.textMuted}
+              trackColor={{ false: Colors.border, true: Colors.accent }}
+              thumbColor={reminderEnabled ? Colors.accentActive : Colors.textMuted}
             />
           </View>
           {reminderEnabled && (
@@ -438,7 +438,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
   title: {
     fontSize: FontSize.xxl,
-    fontWeight: '700',
+    fontWeight: '600',
     color: Colors.textPrimary,
     paddingHorizontal: Spacing.md,
     paddingTop: Spacing.sm,
@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: FontSize.xs,
-    fontWeight: '700',
+    fontWeight: '600',
     color: Colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 1,
@@ -463,19 +463,21 @@ const styles = StyleSheet.create({
   },
   card: {
     marginHorizontal: Spacing.md,
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.lg,
+    backgroundColor: Colors.card,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
     overflow: 'hidden',
   },
   row: { flexDirection: 'row', alignItems: 'center', padding: Spacing.md },
-  rowIcon: { marginRight: Spacing.sm },
-  rowLabel: { flex: 1, fontSize: FontSize.md, color: Colors.textPrimary },
-  separator: { height: 1, backgroundColor: Colors.border, marginLeft: Spacing.md + 28 },
+  rowIcon: { marginRight: Spacing.sm, color: Colors.textMuted },
+  rowLabel: { flex: 1, fontSize: FontSize.md, fontWeight: '500', color: Colors.textPrimary },
+  separator: { height: 1, backgroundColor: Colors.borderSubtle, marginLeft: Spacing.md + 28 },
   timeInput: {
-    backgroundColor: Colors.card,
+    backgroundColor: 'rgba(255,255,255,0.02)',
     borderRadius: Radius.sm,
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
+    paddingVertical: Spacing.xs,
     color: Colors.textPrimary,
     fontSize: FontSize.md,
     borderWidth: 1,
@@ -486,23 +488,27 @@ const styles = StyleSheet.create({
   saving: { fontSize: FontSize.xs, color: Colors.textMuted, paddingHorizontal: Spacing.md, paddingBottom: Spacing.xs },
   dayChip: {
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 6,
+    paddingVertical: Spacing.xs + 2,
     borderRadius: Radius.full,
-    backgroundColor: Colors.card,
+    backgroundColor: 'rgba(255,255,255,0.04)',
     marginRight: Spacing.xs,
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
   },
-  dayChipActive: { backgroundColor: Colors.accent },
-  dayChipText: { fontSize: FontSize.sm, color: Colors.textSecondary },
-  dayChipTextActive: { color: Colors.bg, fontWeight: '700' },
+  dayChipActive: { backgroundColor: Colors.accent, borderColor: Colors.accent },
+  dayChipText: { fontSize: FontSize.sm, color: Colors.textSecondary, fontWeight: '500' },
+  dayChipTextActive: { color: Colors.textPrimary, fontWeight: '600' },
   addJobCard: {
     marginHorizontal: Spacing.md,
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.card,
     borderRadius: Radius.lg,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   input: {
-    backgroundColor: Colors.card,
+    backgroundColor: 'rgba(255,255,255,0.02)',
     borderRadius: Radius.sm,
     padding: Spacing.md,
     color: Colors.textPrimary,
@@ -511,28 +517,30 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  colorLabel: { fontSize: FontSize.sm, color: Colors.textSecondary, marginBottom: Spacing.xs },
+  colorLabel: { fontSize: FontSize.xs, color: Colors.textMuted, marginBottom: Spacing.xs, textTransform: 'uppercase', letterSpacing: 1 },
   colorRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md, flexWrap: 'wrap' },
   colorDot: { width: 28, height: 28, borderRadius: Radius.full },
-  colorDotSelected: { borderWidth: 3, borderColor: Colors.textPrimary },
+  colorDotSelected: { borderWidth: 2, borderColor: Colors.textPrimary },
   saveBtn: {
     backgroundColor: Colors.accent,
-    borderRadius: Radius.md,
+    borderRadius: Radius.sm,
     padding: Spacing.md,
     alignItems: 'center',
   },
-  saveBtnText: { color: Colors.bg, fontWeight: '700', fontSize: FontSize.md },
+  saveBtnText: { color: Colors.textPrimary, fontWeight: '600', fontSize: FontSize.md },
   jobRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.card,
     marginHorizontal: Spacing.md,
     marginBottom: Spacing.xs,
     borderRadius: Radius.md,
     padding: Spacing.md,
     gap: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
   },
-  jobColorBar: { width: 4, height: 36, borderRadius: 2 },
+  jobColorBar: { width: 3, height: 32, borderRadius: 2 },
   jobName: { fontSize: FontSize.md, fontWeight: '600', color: Colors.textPrimary },
   jobSub: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: 2 },
   rowSub: {
@@ -549,8 +557,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   anchorSaveBtnText: {
-    color: Colors.bg,
-    fontWeight: '700',
+    color: Colors.textPrimary,
+    fontWeight: '600',
     fontSize: FontSize.sm,
   },
   anchorHint: {

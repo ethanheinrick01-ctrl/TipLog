@@ -397,7 +397,7 @@ export default function ImportShiftScreen() {
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color={Colors.bg} />
+              <ActivityIndicator color={Colors.textPrimary} />
             ) : (
               <Text style={styles.processBtnText}>
                 {mode === 'cashout' ? 'Process Receipt' : 'Process Schedule'}
@@ -506,7 +506,7 @@ export default function ImportShiftScreen() {
             )}
             <View style={styles.resultActions}>
               <TouchableOpacity style={styles.saveBtn} onPress={handleSaveCashout} disabled={saving}>
-                {saving ? <ActivityIndicator color={Colors.bg} size="small" /> : <Text style={styles.saveBtnText}>Save Shift</Text>}
+                {saving ? <ActivityIndicator color={Colors.textPrimary} size="small" /> : <Text style={styles.saveBtnText}>Save Shift</Text>}
               </TouchableOpacity>
               <TouchableOpacity style={styles.editBtn} onPress={handleOpenCashoutForm}>
                 <Text style={styles.editBtnText}>Edit Before Saving</Text>
@@ -669,14 +669,14 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: Spacing.sm + 2,
     borderRadius: Radius.md,
-    borderWidth: 1.5,
-    borderColor: Colors.accent,
+    borderWidth: 1,
+    borderColor: Colors.border,
     alignItems: 'center',
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(255,255,255,0.03)',
   },
   toggleBtnActive: { backgroundColor: Colors.accent },
-  toggleBtnText: { fontWeight: '700', fontSize: FontSize.md, color: Colors.accent },
-  toggleBtnTextActive: { color: Colors.bg },
+  toggleBtnText: { fontWeight: '500', fontSize: FontSize.md, color: Colors.textSecondary },
+  toggleBtnTextActive: { color: Colors.textPrimary },
   hint: {
     backgroundColor: Colors.surface,
     borderRadius: Radius.lg,

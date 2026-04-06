@@ -111,7 +111,7 @@ export default function AuthScreen() {
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color={Colors.bg} />
+              <ActivityIndicator color={Colors.textPrimary} />
             ) : (
               <Text style={styles.submitText}>
                 {mode === 'login' ? 'Log In' : 'Create Account'}
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   logo: {
     fontSize: 64,
     fontWeight: '900',
-    color: Colors.accent,
+    color: Colors.accentActive,
   },
   appName: {
     fontSize: 36,
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
   modeBtn: { flex: 1, paddingVertical: Spacing.sm, borderRadius: Radius.md, alignItems: 'center' },
   modeBtnActive: { backgroundColor: Colors.accent },
   modeBtnText: { fontSize: FontSize.md, color: Colors.textMuted, fontWeight: '600' },
-  modeBtnTextActive: { color: Colors.bg },
+  modeBtnTextActive: { color: Colors.textPrimary },
   form: { gap: Spacing.sm },
   input: {
     backgroundColor: Colors.surface,
@@ -172,5 +172,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: Spacing.xs,
   },
-  submitText: { fontSize: FontSize.md, fontWeight: '700', color: Colors.bg },
+  submitText: { fontSize: FontSize.md, fontWeight: '600', color: Colors.textPrimary },
 });
