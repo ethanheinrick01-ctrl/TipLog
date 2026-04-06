@@ -38,6 +38,46 @@ import { Shift } from '../../lib/types';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+function getEarningsRangeStyle(total: number) {
+  if (total <= 0) {
+    return {
+      bg: 'transparent',
+      dayNum: Colors.textSecondary,
+      total: Colors.textSubtle,
+    };
+  }
+
+  if (total <= 75) {
+    return {
+      bg: 'rgba(239, 68, 68, 0.24)', // red
+      dayNum: '#fca5a5',
+      total: '#fecaca',
+    };
+  }
+
+  if (total <= 100) {
+    return {
+      bg: 'rgba(250, 204, 21, 0.24)', // yellow
+      dayNum: '#fde047',
+      total: '#fef08a',
+    };
+  }
+
+  if (total <= 199) {
+    return {
+      bg: 'rgba(52, 211, 153, 0.26)', // mint green
+      dayNum: '#6ee7b7',
+      total: '#a7f3d0',
+    };
+  }
+
+  return {
+    bg: '#065f46', // deep dark emerald
+    dayNum: '#d1fae5',
+    total: '#ecfdf5',
+  };
+}
+
 function hasCashoutData(shift: Shift) {
   return (
     shift.grossEarnings > 0 ||
@@ -81,21 +121,21 @@ export default function CalendarScreen() {
 
   const insight = useMemo(() => {
     if (shifts.length === 0) return "No shifts yet. Snap a cashout to start.";
-    
+
     const goal = 1200;
     const remaining = goal - monthTotal;
-    
+
     if (remaining <= 0) return "🎯 Goal smashed. Keep stacking.";
-    
+
     // Comparison insight
     const now = new Date();
     const thisPeriod = { start: subDays(now, 14), end: now };
     const lastPeriod = { start: subDays(now, 28), end: subDays(now, 15) };
-    
+
     const thisPeriodTotal = shifts
       .filter(s => isWithinInterval(parseISO(s.date), thisPeriod))
       .reduce((sum, s) => sum + s.grossEarnings, 0);
-      
+
     const lastPeriodTotal = shifts
       .filter(s => isWithinInterval(parseISO(s.date), lastPeriod))
       .reduce((sum, s) => sum + s.grossEarnings, 0);
@@ -211,7 +251,7 @@ export default function CalendarScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
@@ -233,7 +273,7 @@ export default function CalendarScreen() {
                 <Text style={styles.monthBadgeText}>{monthName}</Text>
               </View>
             </View>
-            
+
             <View style={styles.moneyRow}>
               <Text style={styles.moneyValue}>${monthTotal.toFixed(2)}</Text>
               <View style={styles.moneyTrend}>
@@ -259,7 +299,7 @@ export default function CalendarScreen() {
           </View>
 
           <View style={styles.actionRow}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.uploadBtn}
               onPress={() => router.push('/shift/import')}
             >
@@ -273,7 +313,7 @@ export default function CalendarScreen() {
               <Ionicons name="chevron-forward" size={14} color={Colors.textMuted} />
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.addManualBtn}
               onPress={() => router.push('/shift/new')}
             >
@@ -291,21 +331,21 @@ export default function CalendarScreen() {
         <View style={styles.calendarSection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>{expanded ? 'Full Calendar' : '2-Week Pay Period'}</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.calendarNavBtn}
               onPress={() => setExpanded(!expanded)}
             >
               <Text style={styles.calendarNavText}>
                 {expanded ? 'Show Pay Period' : 'Show Month'}
               </Text>
-              <Ionicons 
-                name={expanded ? "calendar-outline" : "chevron-down"} 
-                size={14} 
-                color={Colors.textSecondary} 
+              <Ionicons
+                name={expanded ? "calendar-outline" : "chevron-down"}
+                size={14}
+                color={Colors.textSecondary}
               />
             </TouchableOpacity>
           </View>
-          
+
           <Calendar
             currentMonth={currentMonth}
             shifts={shifts}
@@ -376,7 +416,7 @@ export default function CalendarScreen() {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.modalShiftName}>{job?.name ?? 'Unknown'} · {job?.position ?? ''}</Text>
-                      <Text style={styles.modalShiftSub}>{fmt12h(shift.clockIn)} – {fmt12h(shift.clockOut)} · {shift.hours}h</Text>
+                      <Text style={styles.modalShiftSub}>{fmt12h(shift.clockIn)} - {fmt12h(shift.clockOut)} · {shift.hours}h</Text>
                     </View>
                     <Text style={styles.modalShiftEarnings}>{fmt(shift.grossEarnings)}</Text>
                     <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
@@ -441,7 +481,7 @@ function Calendar({ currentMonth, shifts, jobs, expanded, payPeriod, onSelectDat
           const isCurrMonth = expanded ? isSameMonth(day, currentMonth) : true;
           const isTdy = isToday(day);
 
-          const intensity = total > 0 ? Math.min(total / 250, 1) : 0;
+          const rangeStyle = getEarningsRangeStyle(total);
           const isBest = dateStr === bestDay && !expanded;
 
           return (
@@ -452,12 +492,19 @@ function Calendar({ currentMonth, shifts, jobs, expanded, payPeriod, onSelectDat
                 expanded ? styles.dayCellExpanded : styles.dayCellCompact,
                 !isCurrMonth && { opacity: 0.15 },
                 isTdy && styles.todayCell,
-                total > 0 && { backgroundColor: `rgba(74, 222, 128, ${intensity * 0.25})` },
-                isBest && { borderWidth: 1, borderColor: Colors.success, backgroundColor: 'rgba(74, 222, 128, 0.15)' }
+                total > 0 && { backgroundColor: rangeStyle.bg },
+                isBest && styles.bestDayCell,
               ]}
               onPress={() => onSelectDate(dateStr)}
             >
-              <Text style={[styles.dayNum, isTdy && styles.todayNum, isBest && { color: Colors.success }]}>
+              <Text
+                style={[
+                  styles.dayNum,
+                  isTdy && styles.todayNum,
+                  total > 0 && { color: rangeStyle.dayNum },
+                  isBest && styles.bestDayNum,
+                ]}
+              >
                 {format(day, 'd')}
               </Text>
               {isBest && (
@@ -479,7 +526,7 @@ function Calendar({ currentMonth, shifts, jobs, expanded, payPeriod, onSelectDat
                 </View>
               )}
               {total > 0 && (
-                <Text style={[styles.dayTotal, isTdy && { color: Colors.accentActive }]}>
+                <Text style={[styles.dayTotal, { color: rangeStyle.total }, isTdy && styles.todayTotal]}>
                   {`$${Math.round(total)}`}
                 </Text>
               )}
@@ -554,9 +601,9 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   trendText: { fontSize: 12, color: Colors.success, fontWeight: '700' },
-  insightLine: { 
-    fontSize: FontSize.xs, 
-    color: Colors.textSecondary, 
+  insightLine: {
+    fontSize: FontSize.xs,
+    color: Colors.textSecondary,
     fontWeight: '600',
     marginBottom: Spacing.md,
     fontStyle: 'italic',
@@ -680,8 +727,10 @@ const styles = StyleSheet.create({
     aspectRatio: 0.95,
   },
   todayCell: { backgroundColor: 'rgba(255,255,255,0.04)' },
+  bestDayCell: { borderWidth: 1, borderColor: '#34d399' },
   dayNum: { fontSize: FontSize.md, color: Colors.textSecondary, fontWeight: '700' },
   todayNum: { color: Colors.accentActive, fontWeight: '700' },
+  bestDayNum: { color: '#d1fae5' },
   dotRow: { flexDirection: 'row', gap: 2, marginTop: 4 },
   bestBadge: {
     position: 'absolute',
@@ -698,6 +747,7 @@ const styles = StyleSheet.create({
   },
   dot: { width: 5, height: 5, borderRadius: Radius.full },
   dayTotal: { fontSize: 11, color: Colors.textSubtle, marginTop: 3, fontWeight: '700' },
+  todayTotal: { fontWeight: '900' },
   recentSection: {
     paddingHorizontal: Spacing.md,
   },
