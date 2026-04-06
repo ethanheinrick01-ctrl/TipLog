@@ -449,6 +449,7 @@ function Calendar({ currentMonth, shifts, jobs, expanded, payPeriod, onSelectDat
               key={dateStr}
               style={[
                 styles.dayCell,
+                expanded ? styles.dayCellExpanded : styles.dayCellCompact,
                 !isCurrMonth && { opacity: 0.15 },
                 isTdy && styles.todayCell,
                 total > 0 && { backgroundColor: `rgba(74, 222, 128, ${intensity * 0.25})` },
@@ -663,18 +664,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xs,
   },
   dayLabels: { flexDirection: 'row', marginBottom: Spacing.xs },
-  dayLabel: { flex: 1, textAlign: 'center', fontSize: 10, color: Colors.textSubtle, fontWeight: '700' },
+  dayLabel: { flex: 1, textAlign: 'center', fontSize: 11, color: Colors.textSubtle, fontWeight: '700' },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   dayCell: {
     width: `${100 / 7}%`,
-    aspectRatio: 0.76,
     alignItems: 'center',
     justifyContent: 'flex-start',
-    paddingTop: 4,
+    paddingTop: 8,
     borderRadius: Radius.sm,
   },
+  dayCellCompact: {
+    height: 84,
+  },
+  dayCellExpanded: {
+    aspectRatio: 0.95,
+  },
   todayCell: { backgroundColor: 'rgba(255,255,255,0.04)' },
-  dayNum: { fontSize: FontSize.sm, color: Colors.textSecondary, fontWeight: '500' },
+  dayNum: { fontSize: FontSize.md, color: Colors.textSecondary, fontWeight: '700' },
   todayNum: { color: Colors.accentActive, fontWeight: '700' },
   dotRow: { flexDirection: 'row', gap: 2, marginTop: 4 },
   bestBadge: {
@@ -690,8 +696,8 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: Colors.bg,
   },
-  dot: { width: 4, height: 4, borderRadius: Radius.full },
-  dayTotal: { fontSize: 8, color: Colors.textSubtle, marginTop: 2, fontWeight: '600' },
+  dot: { width: 5, height: 5, borderRadius: Radius.full },
+  dayTotal: { fontSize: 11, color: Colors.textSubtle, marginTop: 3, fontWeight: '700' },
   recentSection: {
     paddingHorizontal: Spacing.md,
   },
