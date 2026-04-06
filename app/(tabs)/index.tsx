@@ -799,11 +799,11 @@ const styles = StyleSheet.create({
   },
   uploadBtnTitle: { fontSize: 13, fontWeight: '700', color: Colors.bg },
   uploadBtnSubtitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: 'rgba(0,0,0,0.78)',
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.bg,
     marginTop: 2,
-    lineHeight: 14,
+    lineHeight: 16,
   },
   addManualBtn: {
     flex: 1,
@@ -826,11 +826,11 @@ const styles = StyleSheet.create({
   },
   addManualBtnTitle: { fontSize: 13, fontWeight: '700', color: Colors.textPrimary },
   addManualBtnSubtitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.textPrimary,
     marginTop: 2,
-    lineHeight: 14,
+    lineHeight: 16,
   },
   calendarSection: {
     marginBottom: Spacing.lg,
