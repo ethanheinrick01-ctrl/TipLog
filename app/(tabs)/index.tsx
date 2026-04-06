@@ -104,7 +104,10 @@ export default function CalendarScreen() {
               <View style={styles.uploadIconContainer}>
                 <Ionicons name="camera" size={20} color={Colors.textPrimary} />
               </View>
-              <Text style={styles.uploadBtnText}>Upload Pictures</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.uploadBtnTitle}>Automatic Mode</Text>
+                <Text style={styles.uploadBtnSubtitle}>Upload Pictures</Text>
+              </View>
               <Ionicons name="chevron-forward" size={14} color={Colors.textMuted} />
             </TouchableOpacity>
 
@@ -115,7 +118,10 @@ export default function CalendarScreen() {
               <View style={styles.addIconContainer}>
                 <Ionicons name="add" size={20} color={Colors.bg} />
               </View>
-              <Text style={styles.addManualBtnText}>Add Shift</Text>
+              <View>
+                <Text style={styles.addManualBtnTitle}>Manual Mode</Text>
+                <Text style={styles.addManualBtnSubtitle}>Add Shift</Text>
+              </View>
             </TouchableOpacity>
           </View>
         </View>
@@ -432,7 +438,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  uploadBtnText: { flex: 1, fontSize: FontSize.sm, fontWeight: '600', color: Colors.textPrimary },
+  uploadBtnTitle: { fontSize: 13, fontWeight: '700', color: Colors.textPrimary },
+  uploadBtnSubtitle: { fontSize: 10, fontWeight: '500', color: Colors.textMuted, marginTop: 1 },
   addManualBtn: {
     flex: 1,
     flexDirection: 'row',
@@ -450,7 +457,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  addManualBtnText: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.bg },
+  addManualBtnTitle: { fontSize: 13, fontWeight: '700', color: Colors.bg },
+  addManualBtnSubtitle: { fontSize: 10, fontWeight: '600', color: 'rgba(0,0,0,0.5)', marginTop: 1 },
   calendarSection: {
     marginBottom: Spacing.lg,
   },
