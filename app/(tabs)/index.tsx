@@ -106,7 +106,7 @@ export default function CalendarScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.uploadBtnTitle}>Automatic Mode</Text>
-                <Text style={styles.uploadBtnSubtitle}>Upload Pictures</Text>
+                <Text style={styles.uploadBtnSubtitle}>Upload cashouts or schedules</Text>
               </View>
               <Ionicons name="chevron-forward" size={14} color={Colors.textMuted} />
             </TouchableOpacity>
