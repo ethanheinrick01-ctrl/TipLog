@@ -26,7 +26,9 @@ import {
   endOfWeek,
   addDays,
   isSameDay,
+  subDays,
 } from 'date-fns';
+import { BarChart } from 'react-native-gifted-charts';
 import { Colors, Spacing, Radius, FontSize } from '../../constants/theme';
 import { useShiftStore } from '../../store/shiftStore';
 import { useAuthStore } from '../../store/authStore';
@@ -53,6 +55,27 @@ export default function CalendarScreen() {
   }, [shifts, currentMonth]);
 
   const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 'Ethan';
+
+  // Last 7 days activity for the dashboard chart
+  const weeklyData = useMemo(() => {
+    const today = new Date();
+    return Array.from({ length: 7 }, (_, i) => {
+      const date = subDays(today, 6 - i);
+      const dateStr = format(date, 'yyyy-MM-dd');
+      const dailyTotal = shifts
+        .filter((s) => s.date === dateStr)
+        .reduce((sum, s) => sum + s.grossEarnings, 0);
+
+      return {
+        value: dailyTotal,
+        label: format(date, 'E')[0], // 'S', 'M', 'T', etc.
+        frontColor: dailyTotal > 0 ? Colors.success : 'rgba(255,255,255,0.05)',
+        gradientColor: dailyTotal > 0 ? '#10b981' : 'rgba(255,255,255,0.02)',
+      };
+    });
+  }, [shifts]);
+
+  const chartMax = Math.max(...weeklyData.map((d) => d.value), 100) * 1.2;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -85,6 +108,29 @@ export default function CalendarScreen() {
                 <Ionicons name="trending-up" size={14} color={Colors.success} />
                 <Text style={styles.trendText}>+12%</Text>
               </View>
+            </View>
+
+            <View style={styles.chartWrapper}>
+              <BarChart
+                data={weeklyData}
+                barWidth={18}
+                spacing={Spacing.sm}
+                roundedTop
+                roundedBottom
+                hideRules
+                hideAxesAndRules
+                yAxisThickness={0}
+                xAxisThickness={0}
+                height={60}
+                noOfSections={3}
+                maxValue={chartMax}
+                isAnimated
+                animationDuration={800}
+                showGradient
+                showVerticalLines={false}
+                yAxisLabelPrefix="$"
+                initialSpacing={0}
+              />
             </View>
             
             <View style={styles.progressBar}>
@@ -389,6 +435,11 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   trendText: { fontSize: 12, color: Colors.success, fontWeight: '700' },
+  chartWrapper: {
+    marginVertical: Spacing.md,
+    alignItems: 'center',
+    marginLeft: -20, // offset chart internal padding
+  },
   progressBar: {
     height: 6,
     backgroundColor: 'rgba(255,255,255,0.05)',
