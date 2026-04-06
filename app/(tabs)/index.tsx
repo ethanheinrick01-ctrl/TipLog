@@ -148,13 +148,13 @@ export default function CalendarScreen() {
 
         <View style={styles.calendarSection}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{expanded ? 'Full Calendar' : 'This Week'}</Text>
+            <Text style={styles.sectionTitle}>{expanded ? 'Full Calendar' : '2-Week Pay Period'}</Text>
             <TouchableOpacity 
               style={styles.calendarNavBtn}
               onPress={() => setExpanded(!expanded)}
             >
               <Text style={styles.calendarNavText}>
-                {expanded ? 'Show Week' : 'Show Month'}
+                {expanded ? 'Show Pay Period' : 'Show Month'}
               </Text>
               <Ionicons 
                 name={expanded ? "calendar-outline" : "chevron-down"} 
@@ -298,7 +298,7 @@ function Calendar({ currentMonth, shifts, jobs, expanded, onSelectDate }: {
 
   const days = expanded 
     ? eachDayOfInterval({ start: gridStart, end: gridEnd })
-    : Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+    : Array.from({ length: 14 }, (_, i) => addDays(subDays(weekStart, 7), i));
 
   return (
     <View style={styles.calendarGridContainer}>
