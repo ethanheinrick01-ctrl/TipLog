@@ -72,10 +72,19 @@ export const useShiftStore = create<ShiftState>((set, get) => ({
     set({ shifts: dbGetShifts(userId) });
 
     if (Platform.OS === 'web') {
-      // Web has no SQLite — push to Supabase immediately so it survives refresh
-      syncAll(userId).then(() => {
-        set({ shifts: dbGetShifts(userId), jobs: db.getJobs() });
-      }).catch((e) => console.warn('Post-save sync error (web):', e));
+      // Web has no SQLite — push directly to Supabase so it survives refresh.
+      // Bypass syncAll to avoid getUnsyncedShifts timing issues.
+      const { expenses: _exp, ...shiftRow } = computed;
+      supabase
+        .from('shifts')
+        .upsert(shiftRow, { onConflict: 'id' })
+        .then(({ error }) => {
+          if (error) {
+            console.warn('Shift upsert error (web):', error.message, error.details, error.hint);
+          } else {
+            db.markShiftSynced(computed.id);
+          }
+        });
     }
   },
 
