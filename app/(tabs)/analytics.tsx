@@ -235,21 +235,60 @@ export default function AnalyticsScreen() {
               </View>
             )}
 
-            {/* Hero */}
+            {/* Hero + 6-month mini chart split */}
             <View style={styles.heroCard}>
-              <Text style={styles.heroLabel}>Total Earnings</Text>
-              <Text style={styles.heroValue}>{fmt(summary.grossEarnings)}</Text>
-              <Text style={styles.heroSubtext}>
-                {summary.shifts} shifts · {summary.hours.toFixed(1)} hrs · {fmt(summary.hourlyAvg)}/hr
-              </Text>
-              {heroMicro.length > 0 && (
-                <Text style={styles.heroMicro}>{heroMicro}</Text>
-              )}
-              {efficiencyChip && (
-                <View style={{ marginTop: Spacing.sm }}>
-                  <MicroChip label={efficiencyChip} color={Colors.success} />
+              <View style={styles.heroSplit}>
+                <View style={styles.heroLeftPane}>
+                  <Text style={styles.heroLabel}>Total Earnings</Text>
+                  <Text style={styles.heroValue}>{fmt(summary.grossEarnings)}</Text>
+                  <Text style={styles.heroSubtext}>
+                    {summary.shifts} shifts · {summary.hours.toFixed(1)} hrs · {fmt(summary.hourlyAvg)}/hr
+                  </Text>
+                  {heroMicro.length > 0 && <Text style={styles.heroMicro}>{heroMicro}</Text>}
+                  {efficiencyChip && (
+                    <View style={{ marginTop: Spacing.sm }}>
+                      <MicroChip label={efficiencyChip} color={Colors.success} />
+                    </View>
+                  )}
                 </View>
-              )}
+
+                <View style={styles.heroRightPane}>
+                  <View style={styles.heroChartHeader}>
+                    <Text style={styles.heroChartTitle}>Last 6 Months</Text>
+                    {activeMonths > 0 && (
+                      <Text style={styles.heroChartBest}>
+                        {highestMonth.label} ${Math.round(highestMonth.value)}
+                      </Text>
+                    )}
+                  </View>
+
+                  <View style={styles.heroMiniChart}>
+                    {barData.map((item) => (
+                      <View key={item.label} style={styles.heroMiniGroup}>
+                        <View style={styles.heroMiniTrack}>
+                          <View
+                            style={[
+                              styles.heroMiniBar,
+                              {
+                                height: Math.max((item.value / maxBar) * 72, item.value > 0 ? 3 : 0),
+                                backgroundColor:
+                                  item.value === highestMonth.value && item.value > 0
+                                    ? Colors.accentActive
+                                    : Colors.accent,
+                              },
+                            ]}
+                          />
+                        </View>
+                        <Text style={styles.heroMiniLabel}>{item.label}</Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  {activeMonths <= 1 && (
+                    <Text style={styles.heroChartHint}>More data appears as you log shifts.</Text>
+                  )}
+                </View>
+              </View>
             </View>
 
             {/* Previous period mini-card (pay period only) */}
@@ -320,43 +359,6 @@ export default function AnalyticsScreen() {
               />
               <InfoCard label="Net Tips" value={fmt(summary.netTips)} accent={Colors.accent} />
               <InfoCard label="Expenses" value={fmt(summary.expenseTotal)} accent={Colors.error} />
-            </View>
-
-            {/* Last 6 Months */}
-            <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>Last 6 Months</Text>
-              {activeMonths > 0 && (
-                <Text style={styles.highestMonthLabel}>
-                  Best: {highestMonth.label} · ${Math.round(highestMonth.value)}
-                </Text>
-              )}
-            </View>
-            {activeMonths <= 1 && (
-              <Text style={styles.sparseHelper}>More data appears as you log shifts.</Text>
-            )}
-            <View style={styles.barChart}>
-              {barData.map((item) => (
-                <View key={item.label} style={styles.barGroup}>
-                  <Text style={styles.barValue}>
-                    {item.value > 0 ? `$${Math.round(item.value)}` : ''}
-                  </Text>
-                  <View style={styles.barTrack}>
-                    <View
-                      style={[
-                        styles.bar,
-                        {
-                          height: Math.max((item.value / maxBar) * 120, item.value > 0 ? 4 : 0),
-                          backgroundColor:
-                            item.value === highestMonth.value && item.value > 0
-                              ? Colors.accentActive
-                              : Colors.accent,
-                        },
-                      ]}
-                    />
-                  </View>
-                  <Text style={styles.barLabel}>{item.label}</Text>
-                </View>
-              ))}
             </View>
 
             {/* Other */}
@@ -651,6 +653,72 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   heroRow: { flexDirection: 'row', gap: Spacing.xl, marginTop: Spacing.sm },
+  heroSplit: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    alignItems: 'stretch',
+  },
+  heroLeftPane: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  heroRightPane: {
+    flex: 1,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.sm,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.xs,
+  },
+  heroChartHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.xs,
+    gap: Spacing.xs,
+  },
+  heroChartTitle: {
+    fontSize: FontSize.xs,
+    color: Colors.textMuted,
+    fontWeight: '600',
+  },
+  heroChartBest: {
+    fontSize: 10,
+    color: Colors.accentActive,
+    fontWeight: '600',
+  },
+  heroMiniChart: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    height: 92,
+  },
+  heroMiniGroup: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  heroMiniTrack: {
+    width: 14,
+    height: 72,
+    justifyContent: 'flex-end',
+    marginBottom: 4,
+  },
+  heroMiniBar: {
+    width: 14,
+    borderRadius: Radius.micro,
+  },
+  heroMiniLabel: {
+    fontSize: 9,
+    color: Colors.textSubtle,
+  },
+  heroChartHint: {
+    marginTop: 4,
+    fontSize: 9,
+    color: Colors.textSubtle,
+    fontStyle: 'italic',
+  },
   stat: { alignItems: 'center' },
   statValue: { fontSize: FontSize.lg, fontWeight: '600', color: Colors.textPrimary },
   statLabel: { fontSize: FontSize.xs, color: Colors.textSubtle, marginTop: 2 },
