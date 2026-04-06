@@ -6,10 +6,12 @@ import {
   TouchableOpacity,
   TextInput,
 } from 'react-native';
-import { showConfirm } from '../../lib/webAlert';
+import { showAlert, showConfirm } from '../../lib/webAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useMemo } from 'react';
 import {
+  startOfDay,
+  endOfDay,
   startOfWeek,
   endOfWeek,
   startOfMonth,
@@ -46,6 +48,17 @@ export default function GoalsScreen() {
 
   const now = new Date();
 
+  const dayShifts = useMemo(
+    () =>
+      shifts.filter((s) =>
+        isWithinInterval(parseISO(s.date), {
+          start: startOfDay(now),
+          end: endOfDay(now),
+        }),
+      ),
+    [shifts],
+  );
+
   const weekShifts = useMemo(
     () =>
       shifts.filter((s) =>
@@ -68,29 +81,44 @@ export default function GoalsScreen() {
   );
 
   function getProgress(goal: Goal): number {
-    const relevant = goal.period === 'weekly' ? weekShifts : monthShifts;
+    const relevant =
+      goal.period === 'daily' ? dayShifts : goal.period === 'weekly' ? weekShifts : monthShifts;
     const summary = summarizeShifts(relevant);
     return summary[goal.field] as number;
   }
 
+  const fieldMeta = (f: GoalField) => GOAL_FIELDS.find((x) => x.field === f)!;
+
   function handleSave() {
-    if (!newLabel.trim() || !newTarget.trim() || !user) return;
+    if (!user) {
+      showAlert('Could not save goal', 'No active user found right now.');
+      return;
+    }
+
+    const parsedTarget = Number(newTarget.replace(/[^0-9.]/g, ''));
+    if (!Number.isFinite(parsedTarget) || parsedTarget <= 0) {
+      showAlert('Target required', 'Enter a valid target greater than 0.');
+      return;
+    }
+
+    const autoLabel = `${newPeriod.charAt(0).toUpperCase() + newPeriod.slice(1)} ${fieldMeta(newField).label} goal`;
     const goal: Goal = {
       id: randomUUID(),
       userId: user.id,
-      label: newLabel.trim(),
+      label: newLabel.trim() || autoLabel,
       field: newField,
       period: newPeriod,
-      target: parseFloat(newTarget),
+      target: parsedTarget,
       createdAt: new Date().toISOString(),
     };
+
     saveGoal(goal);
     setAdding(false);
     setNewLabel('');
     setNewTarget('');
   }
 
-  const fieldMeta = (f: GoalField) => GOAL_FIELDS.find((x) => x.field === f)!;
+  const canSaveGoal = Number(newTarget.replace(/[^0-9.]/g, '')) > 0;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -155,7 +183,11 @@ export default function GoalsScreen() {
               onChangeText={setNewTarget}
             />
 
-            <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+            <TouchableOpacity
+              style={[styles.saveBtn, !canSaveGoal && styles.saveBtnDisabled]}
+              onPress={handleSave}
+              disabled={!canSaveGoal}
+            >
               <Text style={styles.saveBtnText}>Save Goal</Text>
             </TouchableOpacity>
           </View>
@@ -295,6 +327,9 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     alignItems: 'center',
     marginTop: Spacing.sm,
+  },
+  saveBtnDisabled: {
+    opacity: 0.45,
   },
   saveBtnText: { color: Colors.textPrimary, fontWeight: '600', fontSize: FontSize.md },
   empty: {
