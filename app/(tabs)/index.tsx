@@ -760,7 +760,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   uploadBtn: {
-    flex: 1.4,
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.textPrimary,
