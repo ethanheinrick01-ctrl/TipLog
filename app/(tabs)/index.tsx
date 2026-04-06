@@ -22,7 +22,9 @@ import {
   parseISO,
   isToday,
   startOfWeek,
+  endOfWeek,
   addDays,
+  isSameDay,
   subDays,
 } from 'date-fns';
 import { Colors, Spacing, Radius, FontSize } from '../../constants/theme';
@@ -50,7 +52,7 @@ export default function CalendarScreen() {
       .reduce((sum, s) => sum + s.grossEarnings, 0);
   }, [shifts, currentMonth]);
 
-  const firstName = user?.name?.split(' ')[0] || 'Ethan';
+  const firstName = user?.name?.split(' ')[0] || 'User';
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -221,7 +223,9 @@ export default function CalendarScreen() {
                       router.push(`/shift/${shift.id}`);
                     }}
                   >
-                    <View style={[styles.jobDot, { backgroundColor: job?.color ?? Colors.accent }]} />
+                    <View style={[styles.shiftBadge, { width: 32, height: 32, borderRadius: 16 }]}>
+                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: job?.color ?? Colors.accent }} />
+                    </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.modalShiftName}>{job?.name ?? 'Unknown'} · {job?.position ?? ''}</Text>
                       <Text style={styles.modalShiftSub}>{fmt12h(shift.clockIn)} – {fmt12h(shift.clockOut)} · {shift.hours}h</Text>
