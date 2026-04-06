@@ -236,59 +236,57 @@ export default function AnalyticsScreen() {
               )}
             </View>
 
-            {/* Hero + 6-month mini chart split */}
-            <View style={styles.heroCard}>
-              <View style={styles.heroSplit}>
-                <View style={styles.heroLeftPane}>
-                  <Text style={styles.heroLabel}>Total Earnings</Text>
-                  <Text style={styles.heroValue}>{fmt(summary.grossEarnings)}</Text>
-                  <Text style={styles.heroSubtext}>
-                    {summary.shifts} shifts · {summary.hours.toFixed(1)} hrs · {fmt(summary.hourlyAvg)}/hr
-                  </Text>
-                  {heroMicro.length > 0 && <Text style={styles.heroMicro}>{heroMicro}</Text>}
-                  {efficiencyChip && (
-                    <View style={{ marginTop: Spacing.sm, alignSelf: 'flex-start' }}>
-                      <MicroChip label={efficiencyChip} color={Colors.success} />
-                    </View>
+            {/* Total Earnings + 6-month graph as two separate bubbles */}
+            <View style={styles.heroSplitRow}>
+              <View style={styles.heroSplitBubble}>
+                <Text style={styles.heroLabel}>Total Earnings</Text>
+                <Text style={styles.heroValue}>{fmt(summary.grossEarnings)}</Text>
+                <Text style={styles.heroSubtext}>
+                  {summary.shifts} shifts · {summary.hours.toFixed(1)} hrs · {fmt(summary.hourlyAvg)}/hr
+                </Text>
+                {heroMicro.length > 0 && <Text style={styles.heroMicro}>{heroMicro}</Text>}
+                {efficiencyChip && (
+                  <View style={{ marginTop: Spacing.sm, alignSelf: 'flex-start' }}>
+                    <MicroChip label={efficiencyChip} color={Colors.success} />
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.heroSplitBubble}>
+                <View style={styles.heroChartHeader}>
+                  <Text style={styles.heroChartTitle}>Last 6 Months</Text>
+                  {activeMonths > 0 && (
+                    <Text style={styles.heroChartBest}>
+                      {highestMonth.label} ${Math.round(highestMonth.value)}
+                    </Text>
                   )}
                 </View>
 
-                <View style={styles.heroRightPane}>
-                  <View style={styles.heroChartHeader}>
-                    <Text style={styles.heroChartTitle}>Last 6 Months</Text>
-                    {activeMonths > 0 && (
-                      <Text style={styles.heroChartBest}>
-                        {highestMonth.label} ${Math.round(highestMonth.value)}
-                      </Text>
-                    )}
-                  </View>
-
-                  <View style={styles.heroMiniChart}>
-                    {barData.map((item) => (
-                      <View key={item.label} style={styles.heroMiniGroup}>
-                        <View style={styles.heroMiniTrack}>
-                          <View
-                            style={[
-                              styles.heroMiniBar,
-                              {
-                                height: Math.max((item.value / maxBar) * 72, item.value > 0 ? 3 : 0),
-                                backgroundColor:
-                                  item.value === highestMonth.value && item.value > 0
-                                    ? Colors.accentActive
-                                    : Colors.accent,
-                              },
-                            ]}
-                          />
-                        </View>
-                        <Text style={styles.heroMiniLabel}>{item.label}</Text>
+                <View style={styles.heroMiniChart}>
+                  {barData.map((item) => (
+                    <View key={item.label} style={styles.heroMiniGroup}>
+                      <View style={styles.heroMiniTrack}>
+                        <View
+                          style={[
+                            styles.heroMiniBar,
+                            {
+                              height: Math.max((item.value / maxBar) * 72, item.value > 0 ? 3 : 0),
+                              backgroundColor:
+                                item.value === highestMonth.value && item.value > 0
+                                  ? Colors.accentActive
+                                  : Colors.accent,
+                            },
+                          ]}
+                        />
                       </View>
-                    ))}
-                  </View>
-
-                  {activeMonths <= 1 && (
-                    <Text style={styles.heroChartHint}>More data appears as you log shifts.</Text>
-                  )}
+                      <Text style={styles.heroMiniLabel}>{item.label}</Text>
+                    </View>
+                  ))}
                 </View>
+
+                {activeMonths <= 1 && (
+                  <Text style={styles.heroChartHint}>More data appears as you log shifts.</Text>
+                )}
               </View>
             </View>
 
@@ -664,24 +662,20 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   heroRow: { flexDirection: 'row', gap: Spacing.xl, marginTop: Spacing.sm },
-  heroSplit: {
+  heroSplitRow: {
     flexDirection: 'row',
-    gap: Spacing.md,
-    alignItems: 'stretch',
+    gap: Spacing.xs,
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.sm,
   },
-  heroLeftPane: {
+  heroSplitBubble: {
     flex: 1,
-    justifyContent: 'center',
-  },
-  heroRightPane: {
-    flex: 1,
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.card,
     borderWidth: 1,
     borderColor: Colors.borderSubtle,
     borderRadius: Radius.md,
-    paddingHorizontal: Spacing.sm,
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.xs,
+    padding: Spacing.sm,
   },
   heroChartHeader: {
     flexDirection: 'row',
