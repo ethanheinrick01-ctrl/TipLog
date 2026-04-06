@@ -97,16 +97,25 @@ export default function CalendarScreen() {
 
   const monthName = format(currentMonth, 'MMMM');
   const year = format(currentMonth, 'yyyy');
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
 
-  const monthTotal = useMemo(() => {
-    return shifts
-      .filter((s) => isSameMonth(parseISO(s.date), currentMonth))
-      .reduce((sum, s) => sum + s.grossEarnings, 0);
-  }, [shifts, currentMonth]);
+  const monthShifts = useMemo(
+    () => shifts.filter((s) => isSameMonth(parseISO(s.date), currentMonth)),
+    [shifts, currentMonth],
+  );
+
+  const monthWorkedShifts = useMemo(
+    () => monthShifts.filter((s) => s.date <= todayStr && hasCashoutData(s)),
+    [monthShifts, todayStr],
+  );
+
+  const monthTotal = useMemo(
+    () => monthWorkedShifts.reduce((sum, s) => sum + s.grossEarnings, 0),
+    [monthWorkedShifts],
+  );
 
   const monthlyEarningsGoal = useMemo(
-    () =>
-      goals.find((g) => g.period === 'monthly' && g.field === 'grossEarnings') ?? null,
+    () => goals.find((g) => g.period === 'monthly' && g.field === 'grossEarnings') ?? null,
     [goals],
   );
 
@@ -120,55 +129,70 @@ export default function CalendarScreen() {
   );
 
   const firstName = user?.name?.split(' ')[0] || 'User';
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
 
   const avgEarnings = useMemo(() => {
-    const completed = shifts.filter(hasCashoutData);
+    const completed = shifts.filter((s) => s.date <= todayStr && hasCashoutData(s));
     if (completed.length === 0) return 0;
     const total = completed.reduce((sum, s) => sum + s.grossEarnings, 0);
     return total / completed.length;
-  }, [shifts]);
+  }, [shifts, todayStr]);
 
   const insight = useMemo(() => {
-    if (shifts.length === 0) return 'No shifts yet. Snap a cashout to start.';
+    if (monthShifts.length === 0) return 'No shifts this month yet.';
 
-    // Comparison insight
+    const workedCount = monthWorkedShifts.length;
+    const scheduledCount = monthShifts.length;
+    const workedText =
+      scheduledCount > workedCount
+        ? `${workedCount} out of ${scheduledCount} shifts worked`
+        : `${workedCount} shift${workedCount === 1 ? '' : 's'} worked`;
+
+    if (goalTarget) {
+      if (goalRemaining <= 0) return `${workedText} · 🎯 Goal smashed.`;
+      return `${workedText} · $${goalRemaining.toFixed(0)} of $${goalTarget.toFixed(0)} goal remains.`;
+    }
+
+    // Comparison insight (worked shifts only)
     const now = new Date();
     const thisPeriod = { start: subDays(now, 14), end: now };
     const lastPeriod = { start: subDays(now, 28), end: subDays(now, 15) };
 
     const thisPeriodTotal = shifts
-      .filter((s) => isWithinInterval(parseISO(s.date), thisPeriod))
+      .filter(
+        (s) =>
+          s.date <= todayStr &&
+          hasCashoutData(s) &&
+          isWithinInterval(parseISO(s.date), thisPeriod),
+      )
       .reduce((sum, s) => sum + s.grossEarnings, 0);
 
     const lastPeriodTotal = shifts
-      .filter((s) => isWithinInterval(parseISO(s.date), lastPeriod))
+      .filter(
+        (s) =>
+          s.date <= todayStr &&
+          hasCashoutData(s) &&
+          isWithinInterval(parseISO(s.date), lastPeriod),
+      )
       .reduce((sum, s) => sum + s.grossEarnings, 0);
-
-    if (goalTarget) {
-      if (goalRemaining <= 0) return '🎯 Goal smashed. Keep stacking.';
-      if (thisPeriodTotal > lastPeriodTotal && lastPeriodTotal > 0) {
-        const pct = Math.round(((thisPeriodTotal - lastPeriodTotal) / lastPeriodTotal) * 100);
-        return `📈 Up ${pct}% from last period. Keep it rolling.`;
-      }
-      if (goalRemaining < 300) return "You're close. Finish strong.";
-      return `$${goalRemaining.toFixed(0)} to go. Pick up a shift.`;
-    }
 
     if (thisPeriodTotal > lastPeriodTotal && lastPeriodTotal > 0) {
       const pct = Math.round(((thisPeriodTotal - lastPeriodTotal) / lastPeriodTotal) * 100);
-      return `📈 Up ${pct}% from last period.`;
+      return `${workedText} · 📈 Up ${pct}% from last period.`;
     }
 
-    if (shifts.length < 5 && monthTotal < 500) return 'Slow month. Time to push.';
-    return `${shifts.length} shifts logged this month.`;
-  }, [shifts, monthTotal, goalTarget, goalRemaining]);
+    return `${workedText}.`;
+  }, [monthShifts, monthWorkedShifts, goalTarget, goalRemaining, shifts, todayStr]);
 
   const weeklySummary = useMemo(() => {
     const periodWindow = { start: payPeriod.start, end: payPeriod.end };
-    const periodShifts = shifts.filter((s) => isWithinInterval(parseISO(s.date), periodWindow));
+    const periodShifts = shifts.filter(
+      (s) =>
+        s.date <= todayStr &&
+        hasCashoutData(s) &&
+        isWithinInterval(parseISO(s.date), periodWindow),
+    );
 
-    if (periodShifts.length === 0) return "No worked shifts this pay period yet.";
+    if (periodShifts.length === 0) return 'No worked shifts this pay period yet.';
 
     const total = periodShifts.reduce((sum, s) => sum + s.grossEarnings, 0);
     const count = periodShifts.length;
@@ -180,20 +204,25 @@ export default function CalendarScreen() {
         : '';
 
     return `${count} shift${count > 1 ? 's' : ''} this pay period, $${Math.round(total)} total. ${distNote || 'Efficient.'}`;
-  }, [shifts, payPeriod]);
+  }, [shifts, payPeriod, todayStr]);
 
   const bestDayInPeriod = useMemo(() => {
     const periodWindow = { start: payPeriod.start, end: payPeriod.end };
-    const periodShifts = shifts.filter((s) => isWithinInterval(parseISO(s.date), periodWindow));
+    const periodShifts = shifts.filter(
+      (s) =>
+        s.date <= todayStr &&
+        hasCashoutData(s) &&
+        isWithinInterval(parseISO(s.date), periodWindow),
+    );
     if (periodShifts.length === 0) return null;
 
     return [...periodShifts].sort((a, b) => b.grossEarnings - a.grossEarnings)[0].date;
-  }, [shifts, payPeriod]);
+  }, [shifts, payPeriod, todayStr]);
 
   const completedShifts = useMemo(
     () =>
       shifts
-        .filter((s) => !(s.date > todayStr && !hasCashoutData(s)))
+        .filter((s) => s.date <= todayStr && hasCashoutData(s))
         .sort((a, b) => b.date.localeCompare(a.date)),
     [shifts, todayStr],
   );
