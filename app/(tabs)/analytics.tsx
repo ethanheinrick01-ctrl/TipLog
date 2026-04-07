@@ -587,7 +587,7 @@ const styles = StyleSheet.create({
   },
   coachCard: {
     marginHorizontal: Spacing.md,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md,
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
     borderWidth: 1,
@@ -611,7 +611,7 @@ const styles = StyleSheet.create({
   coachMainText: {
     fontSize: FontSize.sm,
     color: Colors.textSecondary,
-    lineHeight: 18,
+    lineHeight: 19,
   },
   coachDeltaRow: {
     flexDirection: 'row',
@@ -690,7 +690,7 @@ const styles = StyleSheet.create({
   heroRow: { flexDirection: 'row', gap: Spacing.xl, marginTop: Spacing.sm },
   heroSplitRow: {
     flexDirection: 'row',
-    gap: Spacing.xs,
+    gap: Spacing.sm,
     marginHorizontal: Spacing.md,
     marginTop: Spacing.md,
     marginBottom: Spacing.sm,
@@ -701,7 +701,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.borderSubtle,
     borderRadius: Radius.md,
-    padding: Spacing.sm,
+    padding: Spacing.md,
   },
   heroChartHeader: {
     flexDirection: 'row',
@@ -716,7 +716,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   heroChartBest: {
-    fontSize: 10,
+    fontSize: 11,
     color: Colors.accentActive,
     fontWeight: '600',
   },
@@ -741,14 +741,13 @@ const styles = StyleSheet.create({
     borderRadius: Radius.micro,
   },
   heroMiniLabel: {
-    fontSize: 9,
+    fontSize: 10,
     color: Colors.textSubtle,
   },
   heroChartHint: {
     marginTop: 4,
-    fontSize: 9,
+    fontSize: 10,
     color: Colors.textSubtle,
-    fontStyle: 'italic',
   },
   stat: { alignItems: 'center' },
   statValue: { fontSize: FontSize.lg, fontWeight: '600', color: Colors.textPrimary },

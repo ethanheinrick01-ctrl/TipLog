@@ -820,11 +820,11 @@ const styles = StyleSheet.create({
   },
   trendText: { fontSize: 12, color: Colors.success, fontWeight: '700' },
   insightLine: {
-    fontSize: FontSize.xs,
+    fontSize: FontSize.sm,
     color: Colors.textSecondary,
     fontWeight: '600',
     marginBottom: Spacing.md,
-    fontStyle: 'italic',
+    lineHeight: 18,
   },
   progressBar: {
     height: 6,
@@ -858,14 +858,15 @@ const styles = StyleSheet.create({
   },
   nextMoveText: {
     flex: 1,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
     color: Colors.textSecondary,
-    fontStyle: 'italic',
+    lineHeight: 16,
   },
   actionRow: {
     flexDirection: 'row',
     gap: Spacing.sm,
+    marginBottom: Spacing.sm,
   },
   onboardingCard: {
     marginHorizontal: Spacing.md,
