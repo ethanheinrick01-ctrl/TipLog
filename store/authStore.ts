@@ -131,10 +131,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   setSession: async (session) => {
-    set({ session });
-    if (session?.user?.id) {
-      await get().loadUser(session.user.id);
+    // Session gone -> clear app user too (prevents stale logged-in UI state)
+    if (!session?.user?.id) {
+      set({ session: null, user: null, loading: false });
+      return;
     }
+
+    set({ session });
+    await get().loadUser(session.user.id);
     set({ loading: false });
   },
 
@@ -144,6 +148,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       .select('*')
       .eq('id', userId)
       .single();
-    if (data) set({ user: data });
+    if (data) {
+      set({ user: data });
+    } else {
+      set({ user: null });
+    }
   },
 }));
