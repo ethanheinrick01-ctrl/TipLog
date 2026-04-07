@@ -241,7 +241,10 @@ export default function SettingsScreen() {
       const res = await fetch(endpoint, {
         method: 'GET',
         headers: {
-          Authorization: `Bearer ${anonKey}`,
+          // Use the signed-in user's JWT for auth, include anon key for Supabase gateway context.
+          Authorization: `Bearer ${session.access_token}`,
+          apikey: anonKey,
+          // Back-compat for older edge function versions.
           'x-user-token': session.access_token,
         },
       });

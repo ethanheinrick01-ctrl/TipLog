@@ -420,7 +420,7 @@ export default function ImportShiftScreen() {
   }
 
   function buildScheduleShift(p: ParsedShift) {
-    // Only record clock-in — actual end time varies, user fills it in after the shift
+    // Keep parsed clock-out from schedule import so AM/PM blocks are saved accurately.
     const computed = computeShift({
       tipsCash: 0,
       tipsCredit: 0,
@@ -428,13 +428,13 @@ export default function ImportShiftScreen() {
       covers: 0,
       tipOutByCategory: {},
       clockIn: p.clockIn,
-      clockOut: '',
+      clockOut: p.clockOut,
     });
     return {
       date: p.date,
       jobId: defaultJobId,
       clockIn: p.clockIn,
-      clockOut: '',
+      clockOut: p.clockOut,
       tipsCash: 0,
       tipsCredit: 0,
       sales: 0,

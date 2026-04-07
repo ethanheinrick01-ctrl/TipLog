@@ -3,7 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-user-token",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
 };
 
 type AdminSignup = {
@@ -24,8 +25,13 @@ serve(async (req) => {
   }
 
   try {
-    // Extract user token from custom header (anon key goes in Authorization for gateway)
-    const token = req.headers.get("x-user-token") ?? "";
+    // Prefer Authorization Bearer token; keep x-user-token fallback for older clients.
+    const authHeader = req.headers.get("authorization") ?? "";
+    const bearer = authHeader.toLowerCase().startsWith("bearer ")
+      ? authHeader.slice(7).trim()
+      : "";
+    const token = bearer || (req.headers.get("x-user-token") ?? "").trim();
+
     if (!token) {
       return new Response(JSON.stringify({ error: "Missing user token" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -42,31 +48,12 @@ serve(async (req) => {
       });
     }
 
-    // Parse JWT payload to get user ID (JWT structure: header.payload.signature)
-    let userId: string | null = null;
-    try {
-      const parts = token.split('.');
-      if (parts.length === 3) {
-        const payload = JSON.parse(atob(parts[1]));
-        userId = payload.sub ?? null;
-      }
-    } catch {
-      // ignore parse errors
-    }
-
-    if (!userId) {
-      return new Response(JSON.stringify({ error: "Invalid token format" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 401,
-      });
-    }
-
     const admin = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    // Fetch user via admin API using the userId from JWT
-    const { data: userData, error: userErr } = await admin.auth.admin.getUserById(userId);
+    // Validate requester via JWT
+    const { data: userData, error: userErr } = await admin.auth.getUser(token);
 
     if (userErr || !userData?.user) {
       return new Response(JSON.stringify({ error: "User not found" }), {

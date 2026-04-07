@@ -292,7 +292,14 @@ Return a JSON object with:
 
 Return ONLY valid JSON, no markdown fences, no explanation.`;
 
-  const userPrompt = `Extract all shifts from this HotSchedules schedule. Only include rows with a job title/position. Dates are in ${currentMonthStr}.`;
+  const userPrompt = `Extract all shifts from this HotSchedules schedule. Only include rows with a job title/position. Dates are in ${currentMonthStr}.
+
+IMPORTANT for this user at Mike Anderson's:
+- Mon-Thu: AM is 10:00 AM-2:00 PM; PM is 4:45 PM-9:30 PM.
+- Fri-Sat: AM is 10:00 AM-3:59 PM; PM is 4:00 PM-11:00 PM.
+- Sun: AM is 10:00 AM-2:59 PM; PM is 3:00 PM-9:30 PM.
+- If screenshot shows only the start time, infer clockOut using the day-of-week + AM/PM block above.
+- If screenshot explicitly shows a time range, trust the screenshot range.`;
 
   try {
     const contents = images.map((imageInput: string) => ({
