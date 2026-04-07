@@ -135,11 +135,25 @@ export const useShiftStore = create<ShiftState>((set, get) => ({
     set((state) => ({
       goals: [goal, ...state.goals.filter((g) => g.id !== goal.id)],
     }));
+
+    if (Platform.OS === 'web') {
+      supabase.from('goals').upsert(goal, { onConflict: 'id' })
+        .then(({ error }) => {
+          if (error) console.warn('Goal sync error (web):', error.message);
+        });
+    }
   },
 
   deleteGoal: (id) => {
     db.deleteGoal(id);
     set((state) => ({ goals: state.goals.filter((g) => g.id !== id) }));
+
+    if (Platform.OS === 'web') {
+      supabase.from('goals').delete().eq('id', id)
+        .then(({ error }) => {
+          if (error) console.warn('Goal delete sync error (web):', error.message);
+        });
+    }
   },
 
   sync: async (userId) => {

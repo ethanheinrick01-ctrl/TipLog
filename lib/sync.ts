@@ -7,8 +7,10 @@ import {
   upsertJob,
   getPendingDeletes,
   clearPendingDelete,
+  getGoals,
+  upsertGoal,
 } from './db';
-import { Shift, Job } from './types';
+import { Shift, Job, Goal } from './types';
 
 /**
  * Push unsynced local shifts to Supabase, pull remote changes.
@@ -18,6 +20,7 @@ export async function syncAll(userId: string): Promise<void> {
   await pushShifts(userId);
   await pullShifts(userId);
   await syncJobs(userId);
+  await syncGoals(userId);
 }
 
 async function processPendingDeletes(userId: string): Promise<void> {
@@ -113,5 +116,27 @@ async function syncJobs(userId: string): Promise<void> {
     for (const job of data as Job[]) {
       upsertJob(job);
     }
+  }
+}
+
+async function syncGoals(userId: string): Promise<void> {
+  const localGoals = getGoals(userId);
+
+  // Push local goals first
+  if (localGoals.length) {
+    await supabase.from('goals').upsert(localGoals, { onConflict: 'id' });
+  }
+
+  // Pull remote goals
+  const { data, error } = await supabase
+    .from('goals')
+    .select('*')
+    .eq('userId', userId)
+    .order('createdAt', { ascending: false });
+
+  if (error || !data) return;
+
+  for (const goal of data as Goal[]) {
+    upsertGoal(goal);
   }
 }
