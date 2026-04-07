@@ -38,6 +38,14 @@ const JOB_COLORS = [
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+type AdminSignup = {
+  id: string;
+  email: string;
+  name?: string;
+  createdAt: string;
+  confirmed: boolean;
+};
+
 export default function SettingsScreen() {
   const { user, signOut } = useAuthStore();
   const { jobs, shifts, saveJob, deleteJob, sync, syncing } = useShiftStore();
@@ -75,12 +83,23 @@ export default function SettingsScreen() {
   // Export
   const [exporting, setExporting] = useState(false);
 
+  // Admin: team signups
+  const [adminLoading, setAdminLoading] = useState(false);
+  const [adminSignups, setAdminSignups] = useState<AdminSignup[]>([]);
+  const isAdmin = (user?.email ?? '').toLowerCase() === 'ethanheinrick01@gmail.com';
+
   useEffect(() => {
     setReminderEnabled(user?.reminderEnabled ?? false);
     setReminderTime(user?.reminderTime ?? '23:00');
     setPayWeekStart(user?.payWeekStart ?? 1);
     setAnchorInput(user?.payPeriodAnchor ?? DEFAULT_PAY_PERIOD_ANCHOR);
   }, [user]);
+
+  useEffect(() => {
+    if (isAdmin) {
+      loadAdminSignups();
+    }
+  }, [isAdmin]);
 
   async function handleAnchorSave() {
     // Validate: must be a Thursday
@@ -195,6 +214,30 @@ export default function SettingsScreen() {
       showAlert('Export Failed', e.message ?? 'Unknown error');
     } finally {
       setExporting(false);
+    }
+  }
+
+  async function loadAdminSignups() {
+    if (!isAdmin) return;
+    setAdminLoading(true);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const { data, error } = await supabase.functions.invoke('admin-signups', {
+        headers: {
+          Authorization: `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? ''}`,
+          'x-user-token': session?.access_token ?? '',
+        },
+      });
+
+      if (error) throw error;
+      setAdminSignups((data?.users ?? []) as AdminSignup[]);
+    } catch (e: any) {
+      showAlert('Admin load failed', e?.message ?? 'Could not load signups');
+    } finally {
+      setAdminLoading(false);
     }
   }
 
@@ -380,6 +423,37 @@ export default function SettingsScreen() {
           </View>
         ))}
 
+        {/* ── Admin ──────────────────────────────────── */}
+        {isAdmin && (
+          <>
+            <SectionLabel label="Admin" />
+            <View style={styles.card}>
+              <TouchableOpacity onPress={loadAdminSignups} disabled={adminLoading}>
+                <View style={styles.row}>
+                  {adminLoading
+                    ? <ActivityIndicator size="small" color={Colors.accent} style={{ marginRight: Spacing.sm }} />
+                    : <Ionicons name="people-outline" size={20} color={Colors.accent} style={styles.rowIcon} />}
+                  <Text style={[styles.rowLabel, { color: Colors.accent }]}>Refresh Team Signups</Text>
+                  <Text style={styles.adminCount}>{adminSignups.length}</Text>
+                </View>
+              </TouchableOpacity>
+              {adminSignups.map((u) => (
+                <View key={u.id}>
+                  <Sep />
+                  <View style={styles.adminUserRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.adminUserEmail}>{u.email}</Text>
+                      <Text style={styles.adminUserMeta}>
+                        {(u.name?.trim() || 'No profile name')} · {new Date(u.createdAt).toLocaleDateString()} · {u.confirmed ? 'Confirmed' : 'Unconfirmed'}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+
         {/* ── Data ───────────────────────────────────── */}
         <SectionLabel label="Data" />
         <View style={styles.card}>
@@ -546,6 +620,25 @@ const styles = StyleSheet.create({
   rowSub: {
     fontSize: FontSize.xs,
     color: Colors.textMuted,
+    marginTop: 2,
+  },
+  adminCount: {
+    color: Colors.textSecondary,
+    fontSize: FontSize.sm,
+    fontWeight: '700',
+  },
+  adminUserRow: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  adminUserEmail: {
+    color: Colors.textPrimary,
+    fontSize: FontSize.sm,
+    fontWeight: '600',
+  },
+  adminUserMeta: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
     marginTop: 2,
   },
   anchorSaveBtn: {
