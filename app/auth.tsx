@@ -120,6 +120,12 @@ export default function AuthScreen() {
               </Text>
             )}
           </TouchableOpacity>
+
+          {mode === 'signup' && (
+            <Text style={styles.helperText}>
+              If verification is required, we’ll prompt you to check your email after signup.
+            </Text>
+          )}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -175,4 +181,11 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xs,
   },
   submitText: { fontSize: FontSize.md, fontWeight: '600', color: Colors.textPrimary },
+  helperText: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    marginTop: Spacing.xs,
+    textAlign: 'center',
+    lineHeight: 16,
+  },
 });
