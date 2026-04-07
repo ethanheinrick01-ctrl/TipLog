@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { showAlert, showConfirm } from '../../lib/webAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Radius, FontSize } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
@@ -91,6 +91,7 @@ export default function SettingsScreen() {
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminSignups, setAdminSignups] = useState<AdminSignup[]>([]);
   const isAdmin = (user?.email ?? '').toLowerCase() === 'ethanheinrick01@gmail.com';
+  const adminAutoLoadedRef = useRef(false);
 
   useEffect(() => {
     setReminderEnabled(user?.reminderEnabled ?? false);
@@ -100,9 +101,14 @@ export default function SettingsScreen() {
   }, [user]);
 
   useEffect(() => {
-    if (isAdmin) {
-      loadAdminSignups();
+    if (!isAdmin) {
+      adminAutoLoadedRef.current = false;
+      return;
     }
+    // Auto-load once per admin session; avoid repeated refresh loops.
+    if (adminAutoLoadedRef.current) return;
+    adminAutoLoadedRef.current = true;
+    loadAdminSignups();
   }, [isAdmin]);
 
   async function handleAnchorSave() {
@@ -222,7 +228,7 @@ export default function SettingsScreen() {
   }
 
   async function loadAdminSignups() {
-    if (!isAdmin) return;
+    if (!isAdmin || adminLoading) return;
     setAdminLoading(true);
     try {
       const {
