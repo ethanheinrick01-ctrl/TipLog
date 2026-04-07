@@ -24,12 +24,8 @@ serve(async (req) => {
   }
 
   try {
-    // Gateway auth for this function should use anon key in Authorization header.
-    // End-user JWT is forwarded separately so we can validate admin identity here.
-    const forwardedUserToken = req.headers.get("x-user-token") ?? "";
-    const authHeader = req.headers.get("Authorization") ?? "";
-    const authBearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
-    const token = forwardedUserToken || authBearer;
+    // Extract user token from custom header (anon key goes in Authorization for gateway)
+    const token = req.headers.get("x-user-token") ?? "";
     if (!token) {
       return new Response(JSON.stringify({ error: "Missing user token" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -46,21 +42,40 @@ serve(async (req) => {
       });
     }
 
-    const admin = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
+    // Parse JWT payload to get user ID (JWT structure: header.payload.signature)
+    let userId: string | null = null;
+    try {
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1]));
+        userId = payload.sub ?? null;
+      }
+    } catch {
+      // ignore parse errors
+    }
 
-    const {
-      data: { user },
-      error: authErr,
-    } = await admin.auth.getUser(token);
-
-    if (authErr || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+    if (!userId) {
+      return new Response(JSON.stringify({ error: "Invalid token format" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 401,
       });
     }
+
+    const admin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+    // Fetch user via admin API using the userId from JWT
+    const { data: userData, error: userErr } = await admin.auth.admin.getUserById(userId);
+
+    if (userErr || !userData?.user) {
+      return new Response(JSON.stringify({ error: "User not found" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+      });
+    }
+
+    const user = userData.user;
 
     const adminEmails = (Deno.env.get("ADMIN_EMAILS") ?? "ethanheinrick01@gmail.com")
       .split(",")

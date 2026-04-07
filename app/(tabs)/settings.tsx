@@ -237,10 +237,12 @@ export default function SettingsScreen() {
         .replace('.supabase.co', '');
       const endpoint = `https://${projectRef}.supabase.co/functions/v1/admin-signups`;
 
+      const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
       const res = await fetch(endpoint, {
         method: 'GET',
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${anonKey}`,
+          'x-user-token': session.access_token,
         },
       });
 
