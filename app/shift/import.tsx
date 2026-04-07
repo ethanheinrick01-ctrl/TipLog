@@ -69,6 +69,14 @@ export default function ImportShiftScreen() {
 
   // ─── Pick images ────────────────────────────────────────────────────────────
 
+  function toImagePayload(asset: ImagePicker.ImagePickerAsset): string {
+    if (asset.base64) {
+      const mime = asset.mimeType ?? 'image/jpeg';
+      return `data:${mime};base64,${asset.base64}`;
+    }
+    return asset.uri;
+  }
+
   async function pickImages() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
@@ -83,7 +91,7 @@ export default function ImportShiftScreen() {
       base64: true,
     });
     if (!res.canceled && res.assets.length > 0) {
-      setSelectedImages(res.assets.map((a) => a.base64 ?? a.uri));
+      setSelectedImages(res.assets.map((a) => toImagePayload(a)));
       setCashoutResult(null);
       setScheduleResult(null);
       setError(null);
@@ -99,7 +107,7 @@ export default function ImportShiftScreen() {
     }
     const res = await ImagePicker.launchCameraAsync({ quality: 0.8, base64: true });
     if (!res.canceled && res.assets.length > 0) {
-      setSelectedImages([res.assets[0].base64 ?? res.assets[0].uri]);
+      setSelectedImages([toImagePayload(res.assets[0])]);
       setCashoutResult(null);
       setScheduleResult(null);
       setError(null);
@@ -477,8 +485,14 @@ export default function ImportShiftScreen() {
         {selectedImages.length > 0 && !hasResult && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.previewScroll}>
             {selectedImages.map((uri, i) => {
-              // base64 strings need data URI prefix to render as images
-              const src = uri.startsWith('data:') ? uri : `data:image/jpeg;base64,${uri}`;
+              const isDirectUri =
+                uri.startsWith('data:') ||
+                uri.startsWith('file://') ||
+                uri.startsWith('content://') ||
+                uri.startsWith('ph://') ||
+                uri.startsWith('http://') ||
+                uri.startsWith('https://');
+              const src = isDirectUri ? uri : `data:image/jpeg;base64,${uri}`;
               return <Image key={i} source={{ uri: src }} style={styles.preview} />;
             })}
           </ScrollView>

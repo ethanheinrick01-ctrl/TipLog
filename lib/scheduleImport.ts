@@ -48,17 +48,13 @@ export class HotSchedulesOcrAdapter implements ScheduleAdapter {
           !uri.startsWith('content://') &&
           !uri.startsWith('ph://')
         ) {
-          // Strip data URI prefix if present (web sometimes returns data: URIs instead of raw base64)
-          return uri.startsWith('data:') ? uri.split(',')[1] : uri;
+          return uri.startsWith('data:') ? uri : `data:image/jpeg;base64,${uri}`;
         }
         const res = await fetch(uri);
         const blob = await res.blob();
         return new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
-          reader.onloadend = () => {
-            const result = reader.result as string;
-            resolve(result.includes(',') ? result.split(',')[1] : result);
-          };
+          reader.onloadend = () => resolve(reader.result as string);
           reader.onerror = reject;
           reader.readAsDataURL(blob);
         });
@@ -77,6 +73,9 @@ export class HotSchedulesOcrAdapter implements ScheduleAdapter {
 
       if (!response.ok) {
         const errText = await response.text();
+        if (response.status === 413) {
+          return { success: false, shifts: [], error: 'Image too large. Use a tighter crop or lower-resolution screenshot and try again.' };
+        }
         return { success: false, shifts: [], error: `HTTP ${response.status}: ${errText}` };
       }
 

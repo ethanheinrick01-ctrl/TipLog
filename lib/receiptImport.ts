@@ -48,22 +48,17 @@ export class SupabaseOcrAdapter implements OcrAdapter {
     // Otherwise resolve file:// / content:// via fetch on native.
     const base64Images = await Promise.all(
       imageUris.map(async (uri) => {
-        // Not a URI — assume raw base64 or data: URI from picker (web)
+        // Preserve data: URIs so MIME type survives (screenshots are often PNG).
         if (!uri.startsWith('file://') && !uri.startsWith('content://') && !uri.startsWith('ph://')) {
-          // Strip data URI prefix if present (web sometimes returns data: URIs instead of raw base64)
-          return uri.startsWith('data:') ? uri.split(',')[1] : uri;
+          return uri.startsWith('data:') ? uri : `data:image/jpeg;base64,${uri}`;
         }
-        // Native URI — fetch and convert
+
+        // Native URI — fetch and convert to data URI
         const res = await fetch(uri);
         const blob = await res.blob();
         return new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
-          reader.onloadend = () => {
-            const result = reader.result as string;
-            // Strip the data:image/...;base64, prefix if present
-            const base64 = result.includes(',') ? result.split(',')[1] : result;
-            resolve(base64);
-          };
+          reader.onloadend = () => resolve(reader.result as string);
           reader.onerror = reject;
           reader.readAsDataURL(blob);
         });
@@ -82,6 +77,9 @@ export class SupabaseOcrAdapter implements OcrAdapter {
 
       if (!response.ok) {
         const errText = await response.text();
+        if (response.status === 413) {
+          return { success: false, error: 'Image too large. Use a tighter crop or lower-resolution screenshot and try again.' };
+        }
         return { success: false, error: `HTTP ${response.status}: ${errText}` };
       }
 

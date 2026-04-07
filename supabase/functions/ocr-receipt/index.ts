@@ -221,9 +221,13 @@ Return ONLY valid JSON, no markdown fences, no explanation.`
   const userPrompt = "Extract all numbers and financial data from this Toast washout slip.";
 
   try {
-    const contents = images.map((base64: string) => ({
+    const contents = images.map((imageInput: string) => ({
       type: "image_url" as const,
-      image_url: { url: `data:image/jpeg;base64,${base64}` },
+      image_url: {
+        url: imageInput.startsWith("data:")
+          ? imageInput
+          : `data:image/jpeg;base64,${imageInput}`,
+      },
     }));
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
