@@ -218,6 +218,7 @@ export default function CalendarScreen() {
   );
 
   const firstName = user?.name?.split(' ')[0] || 'User';
+  const isFirstRun = shifts.length === 0;
 
   const avgEarnings = useMemo(() => {
     const completed = shifts.filter((s) => s.date <= todayStr && hasCashoutData(s));
@@ -532,6 +533,18 @@ export default function CalendarScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {isFirstRun && (
+          <View style={styles.onboardingCard}>
+            <Text style={styles.onboardingTitle}>Start in 3 quick steps</Text>
+            <Text style={styles.onboardingStep}>1) Tap <Text style={styles.onboardingBold}>Automatic Mode</Text> and scan your first receipt</Text>
+            <Text style={styles.onboardingStep}>2) Confirm totals and save the shift</Text>
+            <Text style={styles.onboardingStep}>3) Set one monthly goal to track momentum</Text>
+            <TouchableOpacity style={styles.onboardingCta} onPress={() => router.push('/shift/import')}>
+              <Text style={styles.onboardingCtaText}>Scan first receipt</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <View style={styles.calendarSection}>
           <View style={styles.sectionHeader}>
@@ -853,6 +866,43 @@ const styles = StyleSheet.create({
   actionRow: {
     flexDirection: 'row',
     gap: Spacing.sm,
+  },
+  onboardingCard: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+    backgroundColor: Colors.card,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
+    padding: Spacing.md,
+  },
+  onboardingTitle: {
+    fontSize: FontSize.md,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginBottom: Spacing.xs,
+  },
+  onboardingStep: {
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  onboardingBold: {
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  onboardingCta: {
+    marginTop: Spacing.sm,
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.accent,
+    borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  onboardingCtaText: {
+    color: Colors.bg,
+    fontWeight: '700',
+    fontSize: FontSize.sm,
   },
   uploadBtn: {
     flex: 1,

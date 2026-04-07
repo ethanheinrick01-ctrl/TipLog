@@ -202,34 +202,29 @@ export default function AnalyticsScreen() {
 
             <Text style={styles.periodLabel}>{periodLabel}</Text>
 
-            {/* Insight + warning split */}
-            <View style={styles.signalRow}>
-              <View style={[styles.insightBlock, styles.signalHalf]}>
-                <Text style={styles.insightBlockText}>{insightText}</Text>
+            {/* Adaptive coach card */}
+            <View style={styles.coachCard}>
+              <View style={styles.coachHeaderRow}>
+                <Ionicons name="sparkles-outline" size={15} color={Colors.accentActive} />
+                <Text style={styles.coachHeaderText}>Coach Note</Text>
               </View>
 
+              <Text style={styles.coachMainText}>{insightText}</Text>
+
               {period === 'payperiod' && (
-                <View style={[styles.compareBanner, styles.signalHalf]}>
+                <View style={styles.coachDeltaRow}>
                   {prevSummary.shifts === 0 ? (
-                    <Text style={[styles.compareText, { color: Colors.textMuted }]}>
-                      First active pay period
-                    </Text>
+                    <Text style={styles.coachDeltaMuted}>First active pay period</Text>
                   ) : (
                     <>
                       <Ionicons
                         name={deltaPositive ? 'trending-up' : 'trending-down'}
-                        size={18}
+                        size={16}
                         color={deltaPositive ? Colors.success : Colors.error}
                       />
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.compareText}>
-                          {deltaPositive ? '+' : ''}{fmt(delta)} vs last period
-                          <Text style={styles.compareSubText}> ({prevPP.label})</Text>
-                        </Text>
-                        <Text style={[styles.compareContextLabel, { color: deltaPositive ? Colors.success : Colors.error }]}> 
-                          {deltaPositive ? 'Up from last period' : 'Down from last period'}
-                        </Text>
-                      </View>
+                      <Text style={[styles.coachDeltaText, { color: deltaPositive ? Colors.success : Colors.error }]}> 
+                        {deltaPositive ? '+' : ''}{fmt(delta)} vs last period ({prevPP.label})
+                      </Text>
                     </>
                   )}
                 </View>
@@ -590,17 +585,48 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     marginBottom: Spacing.xs,
   },
-  signalRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
+  coachCard: {
     marginHorizontal: Spacing.md,
     marginBottom: Spacing.sm,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
   },
-  signalHalf: {
-    flex: 1,
-    marginHorizontal: 0,
-    marginBottom: 0,
-    minHeight: 52,
+  coachHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  coachHeaderText: {
+    fontSize: FontSize.xs,
+    color: Colors.textMuted,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  coachMainText: {
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    lineHeight: 18,
+  },
+  coachDeltaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: Spacing.xs,
+  },
+  coachDeltaText: {
+    fontSize: FontSize.xs,
+    fontWeight: '600',
+  },
+  coachDeltaMuted: {
+    fontSize: FontSize.xs,
+    color: Colors.textMuted,
+    fontWeight: '500',
   },
   // Insight block
   insightBlock: {
