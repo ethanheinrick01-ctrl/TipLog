@@ -219,6 +219,7 @@ export default function CalendarScreen() {
 
   const firstName = user?.name?.split(' ')[0] || 'User';
   const isFirstRun = shifts.length === 0;
+  const needsJobSetup = jobs.length === 0;
 
   const avgEarnings = useMemo(() => {
     const completed = shifts.filter((s) => s.date <= todayStr && hasCashoutData(s));
@@ -537,12 +538,25 @@ export default function CalendarScreen() {
         {isFirstRun && (
           <View style={styles.onboardingCard}>
             <Text style={styles.onboardingTitle}>Start in 3 quick steps</Text>
-            <Text style={styles.onboardingStep}>1) Tap <Text style={styles.onboardingBold}>Automatic Mode</Text> and scan your first receipt</Text>
-            <Text style={styles.onboardingStep}>2) Confirm totals and save the shift</Text>
-            <Text style={styles.onboardingStep}>3) Set one monthly goal to track momentum</Text>
-            <TouchableOpacity style={styles.onboardingCta} onPress={() => router.push('/shift/import')}>
-              <Text style={styles.onboardingCtaText}>Scan first receipt</Text>
-            </TouchableOpacity>
+            {needsJobSetup ? (
+              <>
+                <Text style={styles.onboardingStep}>1) Add your <Text style={styles.onboardingBold}>job position</Text> in Settings</Text>
+                <Text style={styles.onboardingStep}>2) Come back and tap <Text style={styles.onboardingBold}>Automatic Mode</Text></Text>
+                <Text style={styles.onboardingStep}>3) Scan, confirm totals, and save your first shift</Text>
+                <TouchableOpacity style={styles.onboardingCta} onPress={() => router.push('/(tabs)/settings')}>
+                  <Text style={styles.onboardingCtaText}>Set up first job</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text style={styles.onboardingStep}>1) Tap <Text style={styles.onboardingBold}>Automatic Mode</Text> and scan your first receipt</Text>
+                <Text style={styles.onboardingStep}>2) Confirm totals and save the shift</Text>
+                <Text style={styles.onboardingStep}>3) Set one monthly goal to track momentum</Text>
+                <TouchableOpacity style={styles.onboardingCta} onPress={() => router.push('/shift/import')}>
+                  <Text style={styles.onboardingCtaText}>Scan first receipt</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         )}
 

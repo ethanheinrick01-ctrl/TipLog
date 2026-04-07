@@ -181,6 +181,10 @@ export default function ImportShiftScreen() {
       webAlert('Not signed in', 'Sign in to save shifts.');
       return;
     }
+    if (!defaultJobId) {
+      webAlert('Add a job first', 'Go to Settings and add your job position before importing shifts.');
+      return;
+    }
     if (cashoutResult.date && cashoutResult.date > new Date().toISOString().slice(0, 10)) {
       webAlert('Future Date', "You can't log shifts for dates that haven't happened yet.");
       return;
@@ -231,6 +235,10 @@ export default function ImportShiftScreen() {
       webAlert('Not signed in', 'Sign in to save shifts.');
       return;
     }
+    if (!defaultJobId) {
+      webAlert('Add a job first', 'Go to Settings and add your job position before importing shifts.');
+      return;
+    }
     const parsed = scheduleResult.shifts[shiftIndex];
     // Schedule imports allow future dates — the whole point is upcoming shifts
     try {
@@ -247,6 +255,10 @@ export default function ImportShiftScreen() {
     if (!scheduleResult?.success) return;
     if (!user?.id) {
       webAlert('Not signed in', 'Sign in to save shifts.');
+      return;
+    }
+    if (!defaultJobId) {
+      webAlert('Add a job first', 'Go to Settings and add your job position before importing shifts.');
       return;
     }
     const count = scheduleResult.shifts.length;
