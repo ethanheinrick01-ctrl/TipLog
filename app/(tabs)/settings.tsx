@@ -92,6 +92,10 @@ export default function SettingsScreen() {
   const [adminSignups, setAdminSignups] = useState<AdminSignup[]>([]);
   const isAdmin = (user?.email ?? '').toLowerCase() === 'ethanheinrick01@gmail.com';
   const adminAutoLoadedRef = useRef(false);
+  const adminTotalShifts = useMemo(
+    () => adminSignups.reduce((sum, u) => sum + (u.shiftsTotal ?? 0), 0),
+    [adminSignups],
+  );
 
   useEffect(() => {
     setReminderEnabled(user?.reminderEnabled ?? false);
@@ -462,7 +466,7 @@ export default function SettingsScreen() {
                     ? <ActivityIndicator size="small" color={Colors.accent} style={{ marginRight: Spacing.sm }} />
                     : <Ionicons name="people-outline" size={20} color={Colors.accent} style={styles.rowIcon} />}
                   <Text style={[styles.rowLabel, { color: Colors.accent }]}>Refresh Team Signups</Text>
-                  <Text style={styles.adminCount}>{adminSignups.length}</Text>
+                  <Text style={styles.adminCount}>{adminSignups.length} users · {adminTotalShifts} shifts</Text>
                 </View>
               </TouchableOpacity>
               {adminSignups.map((u) => (
