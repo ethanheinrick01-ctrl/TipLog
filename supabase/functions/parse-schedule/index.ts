@@ -123,6 +123,38 @@ function normaliseDate(dateStr: string, defaultYear = 2026): string {
  * - Various time formats (12h, 24h, ranges)
  * - Only includes shifts that have a non-empty position
  */
+function toMinutes(hhmm: string): number | null {
+  const m = (hhmm ?? "").match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+
+/**
+ * Mike Anderson's weekly schedule template (provided by user):
+ * Mon-Thu  AM 10:00-14:00, PM 16:45-21:30
+ * Fri-Sat  AM 10:00-15:59, PM 16:00-23:00
+ * Sun      AM 10:00-14:59, PM 15:00-21:30
+ *
+ * We infer AM/PM from clock-in (before 14:30 => AM block; else PM block)
+ * and normalize clockOut to the expected template.
+ */
+function applyScheduleTemplate(dateIso: string, clockIn: string, clockOut: string): string {
+  const d = new Date(`${dateIso}T00:00:00`);
+  if (Number.isNaN(+d)) return clockOut;
+  const day = d.getDay(); // 0 Sun ... 6 Sat
+  const inMin = toMinutes(clockIn);
+  if (inMin == null) return clockOut;
+
+  const isAmBlock = inMin < 14 * 60 + 30;
+
+  // Sun
+  if (day === 0) return isAmBlock ? "14:59" : "21:30";
+  // Fri/Sat
+  if (day === 5 || day === 6) return isAmBlock ? "15:59" : "23:00";
+  // Mon-Thu
+  return isAmBlock ? "14:00" : "21:30";
+}
+
 function mapGptToScheduleData(gpt: any): HotSchedulesData {
   // Determine the current year from GPT's output if possible
   const sampleDate = JSON.stringify(gpt).match(/\b(202[5-9]|203\d)\b/);
@@ -184,7 +216,12 @@ function mapGptToScheduleData(gpt: any): HotSchedulesData {
     if (seen.has(key)) continue;
     seen.add(key);
 
-    shifts.push({ date, clockIn, clockOut, position });
+    shifts.push({
+      date,
+      clockIn,
+      clockOut: applyScheduleTemplate(date, clockIn, clockOut),
+      position,
+    });
   }
 
   return {
