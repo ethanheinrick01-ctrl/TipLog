@@ -228,16 +228,29 @@ export default function SettingsScreen() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Not signed in');
+      }
 
-      const { data, error } = await supabase.functions.invoke('admin-signups', {
+      const projectRef = (process.env.EXPO_PUBLIC_SUPABASE_URL || '')
+        .replace('https://', '')
+        .replace('.supabase.co', '');
+      const endpoint = `https://${projectRef}.supabase.co/functions/v1/admin-signups`;
+
+      const res = await fetch(endpoint, {
+        method: 'GET',
         headers: {
-          Authorization: `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? ''}`,
-          'x-user-token': session?.access_token ?? '',
+          Authorization: `Bearer ${session.access_token}`,
         },
       });
 
-      if (error) throw error;
-      setAdminSignups((data?.users ?? []) as AdminSignup[]);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`HTTP ${res.status}: ${text.slice(0, 160)}`);
+      }
+
+      const json = await res.json();
+      setAdminSignups((json?.users ?? []) as AdminSignup[]);
     } catch (e: any) {
       showAlert('Admin load failed', e?.message ?? 'Could not load signups');
     } finally {
