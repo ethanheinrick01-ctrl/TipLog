@@ -265,8 +265,12 @@ Return ONLY valid JSON, no markdown fences, no explanation.`
       gptResult = JSON.parse(cleaned);
     } catch {
       return new Response(
-        JSON.stringify({ success: false, error: "Failed to parse GPT response", rawText }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+        JSON.stringify({
+          success: false,
+          error: "Couldn't read a valid Toast cashout from that image. Try a clearer full screenshot/photo.",
+          rawText,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
     }
 

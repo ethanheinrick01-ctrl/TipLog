@@ -338,8 +338,12 @@ Return ONLY valid JSON, no markdown fences, no explanation.`;
       gptResult = JSON.parse(cleaned);
     } catch {
       return new Response(
-        JSON.stringify({ success: false, error: "Failed to parse GPT response", rawText }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+        JSON.stringify({
+          success: false,
+          error: "Couldn't read a valid HotSchedules screenshot. Try a clearer full screenshot that shows dates and shifts.",
+          rawText,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
     }
 
