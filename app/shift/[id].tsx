@@ -11,15 +11,17 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { format, parseISO } from 'date-fns';
+import { useState } from 'react';
 import { Colors, Spacing, Radius, FontSize } from '../../constants/theme';
 import { useShiftStore } from '../../store/shiftStore';
+import { showAlert } from '../../lib/webAlert';
 import { fmt, fmtPct, fmt12h } from '../../lib/calculations';
 
 export default function ShiftDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { shifts, jobs, deleteShift } = useShiftStore();
-
+  const [deleteArmed, setDeleteArmed] = useState(false);
 
   const shift = shifts.find((s) => s.id === id);
   const job = shift ? jobs.find((j) => j.id === shift.jobId) : null;
@@ -35,21 +37,29 @@ export default function ShiftDetailScreen() {
   }
 
   function handleDelete() {
-    const doDelete = () => {
-      deleteShift(shift!.id);
-      setTimeout(() => router.back(), 50);
+    const doDelete = async () => {
+      await deleteShift(shift!.id);
+      setDeleteArmed(false);
+      setTimeout(() => router.back(), 80);
     };
 
     if (Platform.OS === 'web') {
-      // Alert.alert uses window.confirm() on web but Chrome suppresses it silently.
-      // Call window.confirm() directly instead.
-      if ((window as any).confirm('Remove this shift permanently?')) doDelete();
-    } else {
-      Alert.alert('Delete Shift', 'Remove this shift permanently?', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: doDelete },
-      ]);
+      // iOS/Safari can silently suppress confirm dialogs in some contexts.
+      // Use a reliable double-tap confirmation instead.
+      if (!deleteArmed) {
+        setDeleteArmed(true);
+        showAlert('Confirm delete', 'Tap the trash icon again within 3 seconds to delete this shift.');
+        setTimeout(() => setDeleteArmed(false), 3000);
+        return;
+      }
+      void doDelete();
+      return;
     }
+
+    Alert.alert('Delete Shift', 'Remove this shift permanently?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => void doDelete() },
+    ]);
   }
 
   return (
@@ -74,7 +84,7 @@ export default function ShiftDetailScreen() {
                 <Ionicons name="pencil-outline" size={22} color={Colors.accentActive} />
               </TouchableOpacity>
               <TouchableOpacity onPress={handleDelete}>
-                <Ionicons name="trash-outline" size={22} color={Colors.error} />
+                <Ionicons name="trash-outline" size={22} color={deleteArmed ? '#ff8a80' : Colors.error} />
               </TouchableOpacity>
             </View>
           </View>
