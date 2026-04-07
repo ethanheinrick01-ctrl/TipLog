@@ -30,7 +30,12 @@ serve(async (req) => {
     const bearer = authHeader.toLowerCase().startsWith("bearer ")
       ? authHeader.slice(7).trim()
       : "";
-    const token = bearer || (req.headers.get("x-user-token") ?? "").trim();
+    const headerToken = (req.headers.get("x-user-token") ?? "").trim();
+    const looksLikeJwt = (v: string) => v.split(".").length === 3;
+    // Some legacy clients send anon key in Authorization and user JWT in x-user-token.
+    const token = looksLikeJwt(bearer)
+      ? bearer
+      : (looksLikeJwt(headerToken) ? headerToken : bearer || headerToken);
 
     if (!token) {
       return new Response(JSON.stringify({ error: "Missing user token" }), {
