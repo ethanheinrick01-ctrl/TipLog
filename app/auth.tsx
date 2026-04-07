@@ -36,10 +36,12 @@ export default function AuthScreen() {
     setLoading(false);
 
     if (err) {
-      showAlert('Error', err);
-    } else {
-      router.replace('/(tabs)');
+      const isEmailStep = mode === 'signup' && err.toLowerCase().includes('check your email');
+      showAlert(isEmailStep ? 'One more step' : 'Error', err);
+      return;
     }
+
+    router.replace('/(tabs)');
   }
 
   return (
