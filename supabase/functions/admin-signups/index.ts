@@ -12,6 +12,10 @@ type AdminSignup = {
   name?: string;
   createdAt: string;
   confirmed: boolean;
+  shiftsTotal: number;
+  shiftsLast7d: number;
+  shiftsLast30d: number;
+  lastActivity?: string | null;
 };
 
 serve(async (req) => {
@@ -87,15 +91,42 @@ serve(async (req) => {
     const { data: profiles } = await admin.from("users").select("id,name,email");
     const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
 
+    const { data: shifts } = await admin.from("shifts").select("userId,createdAt,updatedAt");
+    const now = Date.now();
+    const dayMs = 24 * 60 * 60 * 1000;
+    const shiftStats = new Map<string, { total: number; d7: number; d30: number; last: number | null }>();
+
+    for (const s of shifts ?? []) {
+      const userId = s.userId as string;
+      const ts = +new Date(s.updatedAt ?? s.createdAt ?? Date.now());
+      const prev = shiftStats.get(userId) ?? { total: 0, d7: 0, d30: 0, last: null };
+      prev.total += 1;
+      if (now - ts <= 7 * dayMs) prev.d7 += 1;
+      if (now - ts <= 30 * dayMs) prev.d30 += 1;
+      if (!prev.last || ts > prev.last) prev.last = ts;
+      shiftStats.set(userId, prev);
+    }
+
     const users: AdminSignup[] = allUsers
-      .map((u) => ({
-        id: u.id,
-        email: u.email ?? "",
-        name: profileMap.get(u.id)?.name ?? u.user_metadata?.name ?? "",
-        createdAt: u.created_at,
-        confirmed: !!u.email_confirmed_at,
-      }))
-      .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
+      .map((u) => {
+        const stats = shiftStats.get(u.id) ?? { total: 0, d7: 0, d30: 0, last: null };
+        return {
+          id: u.id,
+          email: u.email ?? "",
+          name: profileMap.get(u.id)?.name ?? u.user_metadata?.name ?? "",
+          createdAt: u.created_at,
+          confirmed: !!u.email_confirmed_at,
+          shiftsTotal: stats.total,
+          shiftsLast7d: stats.d7,
+          shiftsLast30d: stats.d30,
+          lastActivity: stats.last ? new Date(stats.last).toISOString() : null,
+        };
+      })
+      .sort((a, b) => {
+        const ta = a.lastActivity ? +new Date(a.lastActivity) : 0;
+        const tb = b.lastActivity ? +new Date(b.lastActivity) : 0;
+        return tb - ta;
+      });
 
     return new Response(JSON.stringify({ users }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

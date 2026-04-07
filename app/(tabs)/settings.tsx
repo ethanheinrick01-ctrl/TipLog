@@ -44,6 +44,10 @@ type AdminSignup = {
   name?: string;
   createdAt: string;
   confirmed: boolean;
+  shiftsTotal: number;
+  shiftsLast7d: number;
+  shiftsLast30d: number;
+  lastActivity?: string | null;
 };
 
 export default function SettingsScreen() {
@@ -444,7 +448,11 @@ export default function SettingsScreen() {
                     <View style={{ flex: 1 }}>
                       <Text style={styles.adminUserEmail}>{u.email}</Text>
                       <Text style={styles.adminUserMeta}>
-                        {(u.name?.trim() || 'No profile name')} · {new Date(u.createdAt).toLocaleDateString()} · {u.confirmed ? 'Confirmed' : 'Unconfirmed'}
+                        {(u.name?.trim() || 'No profile name')} · Joined {new Date(u.createdAt).toLocaleDateString()} · {u.confirmed ? 'Confirmed' : 'Unconfirmed'}
+                      </Text>
+                      <Text style={styles.adminUserMeta}>
+                        Activity: {u.shiftsLast7d} shifts / 7d · {u.shiftsLast30d} / 30d · Total {u.shiftsTotal}
+                        {u.lastActivity ? ` · Last ${new Date(u.lastActivity).toLocaleString()}` : ''}
                       </Text>
                     </View>
                   </View>
