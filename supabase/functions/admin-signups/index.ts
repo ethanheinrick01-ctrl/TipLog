@@ -16,6 +16,9 @@ type AdminSignup = {
   shiftsTotal: number;
   shiftsLast7d: number;
   shiftsLast30d: number;
+  cashoutTotal: number;
+  cashoutLast7d: number;
+  cashoutLast30d: number;
   lastActivity?: string | null;
 };
 
@@ -99,25 +102,74 @@ serve(async (req) => {
     const { data: profiles } = await admin.from("users").select("id,name,email");
     const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
 
-    const { data: shifts } = await admin.from("shifts").select("userId,createdAt,updatedAt");
+    const { data: shifts } = await admin
+      .from("shifts")
+      .select("userId,createdAt,updatedAt,tipsCash,tipsCredit,tipsWithheld,sales,covers,tipOut,tipOutByCategory");
     const now = Date.now();
     const dayMs = 24 * 60 * 60 * 1000;
-    const shiftStats = new Map<string, { total: number; d7: number; d30: number; last: number | null }>();
+    const shiftStats = new Map<string, {
+      total: number;
+      d7: number;
+      d30: number;
+      cashoutTotal: number;
+      cashout7: number;
+      cashout30: number;
+      last: number | null;
+    }>();
+
+    const toNum = (v: unknown): number => (typeof v === "number" ? v : Number(v ?? 0) || 0);
 
     for (const s of shifts ?? []) {
       const userId = s.userId as string;
       const ts = +new Date(s.updatedAt ?? s.createdAt ?? Date.now());
-      const prev = shiftStats.get(userId) ?? { total: 0, d7: 0, d30: 0, last: null };
+      const prev = shiftStats.get(userId) ?? {
+        total: 0,
+        d7: 0,
+        d30: 0,
+        cashoutTotal: 0,
+        cashout7: 0,
+        cashout30: 0,
+        last: null,
+      };
+
       prev.total += 1;
       if (now - ts <= 7 * dayMs) prev.d7 += 1;
       if (now - ts <= 30 * dayMs) prev.d30 += 1;
       if (!prev.last || ts > prev.last) prev.last = ts;
+
+      const tipOutByCategoryTotal = s.tipOutByCategory && typeof s.tipOutByCategory === "object"
+        ? Object.values(s.tipOutByCategory as Record<string, unknown>).reduce((sum, v) => sum + toNum(v), 0)
+        : 0;
+
+      const isCashout =
+        toNum(s.tipsCash) > 0 ||
+        toNum(s.tipsCredit) > 0 ||
+        toNum(s.tipsWithheld) > 0 ||
+        toNum(s.sales) > 0 ||
+        toNum(s.covers) > 0 ||
+        toNum(s.tipOut) > 0 ||
+        tipOutByCategoryTotal > 0;
+
+      if (isCashout) {
+        prev.cashoutTotal += 1;
+        if (now - ts <= 7 * dayMs) prev.cashout7 += 1;
+        if (now - ts <= 30 * dayMs) prev.cashout30 += 1;
+      }
+
       shiftStats.set(userId, prev);
     }
 
     const users: AdminSignup[] = allUsers
       .map((u) => {
-        const stats = shiftStats.get(u.id) ?? { total: 0, d7: 0, d30: 0, last: null };
+        const stats = shiftStats.get(u.id) ?? {
+          total: 0,
+          d7: 0,
+          d30: 0,
+          cashoutTotal: 0,
+          cashout7: 0,
+          cashout30: 0,
+          last: null,
+        };
         return {
           id: u.id,
           email: u.email ?? "",
@@ -127,6 +179,9 @@ serve(async (req) => {
           shiftsTotal: stats.total,
           shiftsLast7d: stats.d7,
           shiftsLast30d: stats.d30,
+          cashoutTotal: stats.cashoutTotal,
+          cashoutLast7d: stats.cashout7,
+          cashoutLast30d: stats.cashout30,
           lastActivity: stats.last ? new Date(stats.last).toISOString() : null,
         };
       })

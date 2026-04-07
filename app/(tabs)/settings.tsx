@@ -47,6 +47,9 @@ type AdminSignup = {
   shiftsTotal: number;
   shiftsLast7d: number;
   shiftsLast30d: number;
+  cashoutTotal: number;
+  cashoutLast7d: number;
+  cashoutLast30d: number;
   lastActivity?: string | null;
 };
 
@@ -94,6 +97,10 @@ export default function SettingsScreen() {
   const adminAutoLoadedRef = useRef(false);
   const adminTotalShifts = useMemo(
     () => adminSignups.reduce((sum, u) => sum + (u.shiftsTotal ?? 0), 0),
+    [adminSignups],
+  );
+  const adminTotalCashouts = useMemo(
+    () => adminSignups.reduce((sum, u) => sum + (u.cashoutTotal ?? 0), 0),
     [adminSignups],
   );
 
@@ -466,7 +473,7 @@ export default function SettingsScreen() {
                     ? <ActivityIndicator size="small" color={Colors.accent} style={{ marginRight: Spacing.sm }} />
                     : <Ionicons name="people-outline" size={20} color={Colors.accent} style={styles.rowIcon} />}
                   <Text style={[styles.rowLabel, { color: Colors.accent }]}>Refresh Team Signups</Text>
-                  <Text style={styles.adminCount}>{adminSignups.length} users · {adminTotalShifts} shifts</Text>
+                  <Text style={styles.adminCount}>{adminSignups.length} users · {adminTotalCashouts} cashouts</Text>
                 </View>
               </TouchableOpacity>
               {adminSignups.map((u) => (
@@ -479,7 +486,10 @@ export default function SettingsScreen() {
                         {(u.name?.trim() || 'No profile name')} · Joined {new Date(u.createdAt).toLocaleDateString()} · {u.confirmed ? 'Confirmed' : 'Unconfirmed'}
                       </Text>
                       <Text style={styles.adminUserMeta}>
-                        Activity: {u.shiftsLast7d} shifts / 7d · {u.shiftsLast30d} / 30d · Total {u.shiftsTotal}
+                        Cashouts: {u.cashoutLast7d} / 7d · {u.cashoutLast30d} / 30d · Total {u.cashoutTotal}
+                      </Text>
+                      <Text style={styles.adminUserMeta}>
+                        Shifts (all): {u.shiftsLast7d} / 7d · {u.shiftsLast30d} / 30d · Total {u.shiftsTotal}
                         {u.lastActivity ? ` · Last ${new Date(u.lastActivity).toLocaleString()}` : ''}
                       </Text>
                     </View>
