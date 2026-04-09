@@ -825,10 +825,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
     borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.08)',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
     padding: Spacing.md,
+    overflow: 'hidden',
   },
   autoModeCardText: {
     fontSize: 17,
