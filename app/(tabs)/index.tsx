@@ -885,24 +885,26 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     lineHeight: 16,
   },
-  // White Automatic Mode button inside moneyCard (top, above amount)
+  // Square Automatic Mode button inside moneyCard
   autoModeBtnWhite: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 2,
     backgroundColor: 'rgba(255,255,255,0.10)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.15)',
     borderRadius: Radius.md,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
+    width: 64,
+    height: 64,
+    alignSelf: 'center',
     marginBottom: Spacing.sm,
   },
   autoModeBtnWhiteText: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 9,
+    fontWeight: '600',
     color: Colors.textPrimary,
+    textAlign: 'center',
   },
   // Goals button (replaces Automatic Mode in actionRow)
   goalsBtn: {
