@@ -221,6 +221,11 @@ export function expenseTotal(expenses: Expense[]): number {
 }
 
 export function summarizeShifts(shifts: Shift[]): PeriodSummary {
+  // Filter out placeholder shifts — those with no tips AND no sales are
+  // scheduled-but-not-yet-cashed-out shifts (e.g. HotSchedules imports
+  // that haven't been worked yet). They would drag averages to $0.
+  const worked = shifts.filter((s) => s.tipsCash > 0 || s.tipsCredit > 0 || s.sales > 0);
+
   const s: PeriodSummary = {
     label: '',
     tipsTotal: 0,
@@ -233,7 +238,7 @@ export function summarizeShifts(shifts: Shift[]): PeriodSummary {
     tipPercent: 0,
     sales: 0,
     covers: 0,
-    shifts: shifts.length,
+    shifts: worked.length,
     tipOut: 0,
     tipIn: 0,
     serviceCharge: 0,
@@ -241,7 +246,7 @@ export function summarizeShifts(shifts: Shift[]): PeriodSummary {
     expenseTotal: 0,
   };
 
-  for (const shift of shifts) {
+  for (const shift of worked) {
     s.tipsTotal += shift.tipsTotal;
     s.tipsCash += shift.tipsCash;
     s.tipsCredit += shift.tipsCredit;
