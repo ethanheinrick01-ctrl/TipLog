@@ -458,56 +458,65 @@ export default function CalendarScreen() {
           </View>
 
           <View style={styles.moneyCard}>
-            <View style={styles.moneyHeader}>
-              <Text style={styles.moneyLabel}>Monthly Earnings</Text>
-              <View style={styles.monthBadge}>
-                <Text style={styles.monthBadgeText}>{monthName}</Text>
+            {/* Section 1: Earnings info */}
+            <View style={styles.moneyCardSection1}>
+              <View style={styles.moneyHeader}>
+                <Text style={styles.moneyLabel}>Monthly Earnings</Text>
+                <View style={styles.monthBadge}>
+                  <Text style={styles.monthBadgeText}>{monthName}</Text>
+                </View>
+              </View>
+
+              <View style={styles.moneyRow}>
+                <Text style={styles.moneyValue}>${monthTotal.toFixed(2)}</Text>
+                {monthTrend ? (
+                  <View style={[styles.moneyTrend, { backgroundColor: monthTrend.bg }]}>
+                    <Ionicons name={monthTrend.icon} size={14} color={monthTrend.color} />
+                    <Text style={[styles.trendText, { color: monthTrend.color }]}>
+                      {monthTrend.label}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+
+              <Text style={styles.insightLine}>{insight}</Text>
+            </View>
+
+            {/* Section 2: Automatic Mode button */}
+            <View style={styles.moneyCardSection2}>
+              <TouchableOpacity
+                style={styles.autoModeBtnWhite}
+                onPress={() => router.push('/shift/import')}
+              >
+                <Ionicons name="camera" size={18} color="#111111" />
+                <Text style={styles.autoModeBtnWhiteText}>Automatic Mode</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Section 3: Blank */}
+            <View style={styles.moneyCardSection3} />
+          </View>
+
+          {goalTarget ? (
+            <View style={styles.progressCard}>
+              <View style={styles.progressBar}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    { width: `${goalProgressPct}%` as DimensionValue },
+                  ]}
+                />
+              </View>
+              <View style={styles.progressLabels}>
+                <Text style={styles.progressText}>
+                  {Math.round(goalProgressPct)}% of {formatGoalValue(goalTarget, monthlyGoal?.field ?? null)} goal
+                </Text>
+                <Text style={styles.remainingText}>
+                  {formatGoalValue(goalRemaining, monthlyGoal?.field ?? null)} left
+                </Text>
               </View>
             </View>
-
-            <TouchableOpacity
-              style={styles.autoModeBtnWhite}
-              onPress={() => router.push('/shift/import')}
-            >
-              <Ionicons name="camera" size={16} color={Colors.textPrimary} />
-              <Text style={styles.autoModeBtnWhiteText}>Automatic Mode</Text>
-            </TouchableOpacity>
-
-            <View style={styles.moneyRow}>
-              <Text style={styles.moneyValue}>${monthTotal.toFixed(2)}</Text>
-              {monthTrend ? (
-                <View style={[styles.moneyTrend, { backgroundColor: monthTrend.bg }]}>
-                  <Ionicons name={monthTrend.icon} size={14} color={monthTrend.color} />
-                  <Text style={[styles.trendText, { color: monthTrend.color }]}>
-                    {monthTrend.label}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-
-            <Text style={styles.insightLine}>{insight}</Text>
-
-            {goalTarget ? (
-              <>
-                <View style={styles.progressBar}>
-                  <View
-                    style={[
-                      styles.progressFill,
-                      { width: `${goalProgressPct}%` as DimensionValue },
-                    ]}
-                  />
-                </View>
-                <View style={styles.progressLabels}>
-                  <Text style={styles.progressText}>
-                    {Math.round(goalProgressPct)}% of {formatGoalValue(goalTarget, monthlyGoal?.field ?? null)} goal
-                  </Text>
-                  <Text style={styles.remainingText}>
-                    {formatGoalValue(goalRemaining, monthlyGoal?.field ?? null)} left
-                  </Text>
-                </View>
-              </>
-            ) : null}
-          </View>
+          ) : null}
 
           <View style={styles.nextMoveCard}>
             <Ionicons name="sparkles-outline" size={14} color={Colors.accentActive} />
@@ -805,7 +814,29 @@ const styles = StyleSheet.create({
   moneyCard: {
     backgroundColor: Colors.card,
     borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: Spacing.lg,
+    overflow: 'hidden',
+  },
+  moneyCardSection1: {
+    flex: 1,
     padding: Spacing.lg,
+    paddingBottom: Spacing.sm,
+  },
+  moneyCardSection2: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+  },
+  moneyCardSection3: {
+    flex: 1,
+  },
+  progressCard: {
+    backgroundColor: Colors.card,
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.border,
     marginBottom: Spacing.lg,
@@ -885,7 +916,7 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     lineHeight: 16,
   },
-  // Big white Automatic Mode button inside moneyCard
+  // Big white Automatic Mode button inside moneyCard section 2
   autoModeBtnWhite: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -893,12 +924,12 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: '#FFFFFF',
     borderRadius: Radius.md,
-    paddingVertical: 14,
-    paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.md,
+    paddingVertical: 16,
+    paddingHorizontal: Spacing.xl,
+    width: '100%',
   },
   autoModeBtnWhiteText: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
     color: '#111111',
   },
