@@ -819,10 +819,11 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.border,
+    overflow: 'hidden',
   },
   autoModeCard: {
     flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.92)',
+    backgroundColor: '#FFFFFF',
     borderRadius: Radius.lg,
     justifyContent: 'center',
     alignItems: 'center',
