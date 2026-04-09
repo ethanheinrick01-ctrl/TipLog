@@ -394,7 +394,7 @@ function PrevStat({
   return (
     <View style={styles.prevStat}>
       <Text style={styles.prevLabel}>{label}</Text>
-      <Text style={styles.prevPrev}>{isCurrency ? fmt(prev) : prev.toFixed(1)}</Text>
+      <Text style={[styles.prevPrev, isCurrency && { color: Colors.success }]}>{isCurrency ? fmt(prev) : prev.toFixed(1)}</Text>
       <Text style={[styles.prevDiff, { color: up ? Colors.success : Colors.error }]}>
         {diffLabel}
       </Text>
