@@ -827,7 +827,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
-    paddingVertical: Spacing.md,
+    padding: Spacing.md,
   },
   autoModeCardText: {
     fontSize: 17,
@@ -907,7 +907,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.borderSubtle,
     borderRadius: Radius.md,
-    paddingHorizontal: Spacing.sm,
+    paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     marginBottom: Spacing.sm,
   },
