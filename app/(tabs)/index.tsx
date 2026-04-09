@@ -522,7 +522,7 @@ export default function CalendarScreen() {
           <View style={styles.actionRow}>
             <TouchableOpacity
               style={styles.goalsBtn}
-              onPress={() => Alert.alert('Goals', 'Goals coming soon!')}
+              onPress={() => router.push('/(tabs)/goals')}
             >
               <View style={styles.goalsIconContainer}>
                 <Ionicons name="trophy-outline" size={20} color={Colors.textPrimary} />
