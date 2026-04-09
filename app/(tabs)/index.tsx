@@ -6,6 +6,7 @@ import {
   ScrollView,
   Pressable,
   Modal,
+  Alert,
   type DimensionValue,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -464,6 +465,14 @@ export default function CalendarScreen() {
               </View>
             </View>
 
+            <TouchableOpacity
+              style={styles.autoModeBtnWhite}
+              onPress={() => router.push('/shift/import')}
+            >
+              <Ionicons name="camera" size={16} color={Colors.textPrimary} />
+              <Text style={styles.autoModeBtnWhiteText}>Automatic Mode</Text>
+            </TouchableOpacity>
+
             <View style={styles.moneyRow}>
               <Text style={styles.moneyValue}>${monthTotal.toFixed(2)}</Text>
               {monthTrend ? (
@@ -507,17 +516,16 @@ export default function CalendarScreen() {
 
           <View style={styles.actionRow}>
             <TouchableOpacity
-              style={styles.uploadBtn}
-              onPress={() => router.push('/shift/import')}
+              style={styles.goalsBtn}
+              onPress={() => Alert.alert('Goals', 'Goals coming soon!')}
             >
-              <View style={styles.uploadIconContainer}>
-                <Ionicons name="camera" size={20} color={Colors.bg} />
+              <View style={styles.goalsIconContainer}>
+                <Ionicons name="trophy-outline" size={20} color={Colors.textPrimary} />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.uploadBtnTitle}>Automatic Mode</Text>
-                <Text style={styles.uploadBtnSubtitle}>Snap a cashout. Done in seconds.</Text>
+              <View>
+                <Text style={styles.goalsBtnTitle}>Goals</Text>
+                <Text style={styles.goalsBtnSubtitle}>Track targets</Text>
               </View>
-              <Ionicons name="chevron-forward" size={14} color={Colors.textMuted} />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -875,6 +883,53 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: Colors.textSecondary,
+    lineHeight: 16,
+  },
+  // White Automatic Mode button inside moneyCard (top, above amount)
+  autoModeBtnWhite: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  autoModeBtnWhiteText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  // Goals button (replaces Automatic Mode in actionRow)
+  goalsBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
+    borderRadius: Radius.md,
+    padding: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  goalsIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: Radius.sm,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  goalsBtnTitle: { fontSize: 13, fontWeight: '700', color: Colors.textPrimary },
+  goalsBtnSubtitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginTop: 2,
     lineHeight: 16,
   },
   actionRow: {
