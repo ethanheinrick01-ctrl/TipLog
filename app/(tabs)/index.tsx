@@ -488,7 +488,7 @@ export default function CalendarScreen() {
               style={styles.autoModeCard}
               onPress={() => router.push('/shift/import')}
             >
-              <Ionicons name="camera" size={32} color="#111111" />
+              <Ionicons name="camera" size={40} color="#111111" />
               <Text style={styles.autoModeCardText}>Automatic Mode</Text>
             </TouchableOpacity>
           </View>
@@ -822,7 +822,7 @@ const styles = StyleSheet.create({
   },
   autoModeCard: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(255,255,255,0.92)',
     borderRadius: Radius.lg,
     justifyContent: 'center',
     alignItems: 'center',
@@ -830,7 +830,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
   },
   autoModeCardText: {
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '700',
     color: '#111111',
     textAlign: 'center',
