@@ -290,10 +290,10 @@ export default function AnalyticsScreen() {
               <>
                 <Text style={styles.sectionTitle}>Previous Period  ·  {prevPP.label}</Text>
                 <View style={styles.prevCard}>
-                  <PrevStat label="Earnings" curr={summary.grossEarnings} prev={prevSummary.grossEarnings} isCurrency />
-                  <PrevStat label="Tips" curr={summary.tipsTotal} prev={prevSummary.tipsTotal} isCurrency />
-                  <PrevStat label="Shifts" curr={summary.shifts} prev={prevSummary.shifts} />
-                  <PrevStat label="Tip %" curr={summary.tipPercent} prev={prevSummary.tipPercent} />
+                  <PrevStat label="Prev Earnings" curr={summary.grossEarnings} prev={prevSummary.grossEarnings} isCurrency />
+                  <PrevStat label="Prev Tips" curr={summary.tipsTotal} prev={prevSummary.tipsTotal} isCurrency />
+                  <PrevStat label="Prev Shifts" curr={summary.shifts} prev={prevSummary.shifts} />
+                  <PrevStat label="Prev Tip %" curr={summary.tipPercent} prev={prevSummary.tipPercent} />
                 </View>
               </>
             )}
@@ -386,9 +386,10 @@ function PrevStat({
 }) {
   const diff = curr - prev;
   const up = diff >= 0;
+  // Show +$X for gains (green), $X for losses (red) — the color IS the signal
   const diffLabel = isCurrency
-    ? (up ? '+' : '') + fmt(diff)
-    : (up ? '+' : '') + diff.toFixed(1);
+    ? (up ? '+' : '') + fmt(Math.abs(diff))
+    : (up ? '+' : '') + Math.abs(diff).toFixed(1);
 
   return (
     <View style={styles.prevStat}>
