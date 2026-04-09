@@ -457,9 +457,10 @@ export default function CalendarScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.moneyCard}>
-            {/* Section 1: Earnings info */}
-            <View style={styles.moneyCardSection1}>
+          {/* Two-card hero row */}
+          <View style={styles.heroRow}>
+            {/* Card 1: Monthly Earnings */}
+            <View style={styles.earningsCard}>
               <View style={styles.moneyHeader}>
                 <Text style={styles.moneyLabel}>Monthly Earnings</Text>
                 <View style={styles.monthBadge}>
@@ -482,19 +483,14 @@ export default function CalendarScreen() {
               <Text style={styles.insightLine}>{insight}</Text>
             </View>
 
-            {/* Section 2: Automatic Mode button */}
-            <View style={styles.moneyCardSection2}>
-              <TouchableOpacity
-                style={styles.autoModeBtnWhite}
-                onPress={() => router.push('/shift/import')}
-              >
-                <Ionicons name="camera" size={18} color="#111111" />
-                <Text style={styles.autoModeBtnWhiteText}>Automatic Mode</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Section 3: Blank */}
-            <View style={styles.moneyCardSection3} />
+            {/* Card 2: Automatic Mode */}
+            <TouchableOpacity
+              style={styles.autoModeCard}
+              onPress={() => router.push('/shift/import')}
+            >
+              <Ionicons name="camera" size={28} color="#111111" />
+              <Text style={styles.autoModeCardText}>Automatic Mode</Text>
+            </TouchableOpacity>
           </View>
 
           {goalTarget ? (
@@ -811,27 +807,32 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  moneyCard: {
+  heroRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  earningsCard: {
+    flex: 1,
     backgroundColor: Colors.card,
     borderRadius: Radius.lg,
+    padding: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.border,
-    marginBottom: Spacing.lg,
-    overflow: 'hidden',
   },
-  moneyCardSection1: {
+  autoModeCard: {
     flex: 1,
-    padding: Spacing.lg,
-    paddingBottom: Spacing.sm,
-  },
-  moneyCardSection2: {
-    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: Radius.lg,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
+    gap: 4,
   },
-  moneyCardSection3: {
-    flex: 1,
+  autoModeCardText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#111111',
+    textAlign: 'center',
   },
   progressCard: {
     backgroundColor: Colors.card,
@@ -915,23 +916,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.textSecondary,
     lineHeight: 16,
-  },
-  // Big white Automatic Mode button inside moneyCard section 2
-  autoModeBtnWhite: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#FFFFFF',
-    borderRadius: Radius.md,
-    paddingVertical: 16,
-    paddingHorizontal: Spacing.xl,
-    width: '100%',
-  },
-  autoModeBtnWhiteText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111111',
   },
   // Goals button (replaces Automatic Mode in actionRow)
   goalsBtn: {
