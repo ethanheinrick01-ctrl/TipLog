@@ -44,8 +44,6 @@ export default function ShiftDetailScreen() {
     };
 
     if (Platform.OS === 'web') {
-      // iOS/Safari can silently suppress confirm dialogs in some contexts.
-      // Use a reliable double-tap confirmation instead.
       if (!deleteArmed) {
         setDeleteArmed(true);
         showAlert('Confirm delete', 'Tap the trash icon again within 3 seconds to delete this shift.');
@@ -62,123 +60,122 @@ export default function ShiftDetailScreen() {
     ]);
   }
 
+  const hourlyRate = shift.hours > 0 ? shift.grossEarnings / shift.hours : 0;
+  const tipOutEntries = Object.entries(shift.tipOutByCategory ?? {}).filter(([, v]) => v > 0);
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Hero */}
+
+        {/* ── Hero ───────────────────────────────────────────────────── */}
         <View style={styles.hero}>
-          <View style={styles.heroHeader}>
-            <View>
+          <View style={styles.heroTop}>
+            <View style={styles.heroMeta}>
               <Text style={styles.heroDate}>
-                {format(parseISO(shift.date), 'EEEE, MMMM d, yyyy')}
+                {format(parseISO(shift.date), 'EEEE, MMMM d')}
               </Text>
               <View style={styles.jobRow}>
                 <View style={[styles.jobDot, { backgroundColor: job?.color ?? Colors.accent }]} />
-                <Text style={styles.jobName}>
-                  {job?.name ?? 'Unknown'} · {job?.position ?? ''}
-                </Text>
+                <Text style={styles.jobName}>{job?.name ?? 'Unknown'} · {job?.position ?? ''}</Text>
               </View>
             </View>
-            <View style={{ flexDirection: 'row', gap: Spacing.md }}>
-              <TouchableOpacity onPress={() => router.push(`/shift/edit/${shift!.id}`)}>
-                <Ionicons name="pencil-outline" size={22} color={Colors.accentActive} />
+            <View style={styles.heroActions}>
+              <TouchableOpacity onPress={() => router.push(`/shift/edit/${shift!.id}`)} hitSlop={8}>
+                <Ionicons name="pencil-outline" size={20} color={Colors.accentActive} />
               </TouchableOpacity>
-              <TouchableOpacity onPress={handleDelete}>
-                <Ionicons name="trash-outline" size={22} color={deleteArmed ? '#ff8a80' : Colors.error} />
+              <TouchableOpacity onPress={handleDelete} hitSlop={8}>
+                <Ionicons name="trash-outline" size={20} color={deleteArmed ? '#ff8a80' : Colors.error} />
               </TouchableOpacity>
             </View>
           </View>
 
-          <Text style={styles.heroValue}>{fmt(shift.grossEarnings)}</Text>
-          <Text style={styles.heroLabel}>Total Take-Home</Text>
+          <Text style={styles.heroEarnings}>{fmt(shift.grossEarnings)}</Text>
+          <Text style={styles.heroEarningsLabel}>Total Take-Home</Text>
 
           <View style={styles.heroStats}>
-            <HeroStat label="Net Tips" value={fmt(shift.netTips)} />
-            <HeroStat label="Hours" value={shift.hours.toFixed(2) + 'h'} />
-            <HeroStat label="$/hr" value={fmt(shift.hours > 0 ? shift.grossEarnings / shift.hours : 0)} />
+            <HeroStat label="Net Tips" value={fmt(shift.netTips)} accent={Colors.accent} />
+            <View style={styles.heroDivider} />
+            <HeroStat label="Hours" value={shift.hours.toFixed(1) + 'h'} />
+            <View style={styles.heroDivider} />
+            <HeroStat label="$/hr" value={fmt(hourlyRate)} />
           </View>
+
+          {shift.tipPercent > 0 && (
+            <View style={styles.heroChip}>
+              <Text style={styles.heroChipText}>{fmtPct(shift.tipPercent)} tip rate</Text>
+            </View>
+          )}
         </View>
 
-        {/* Tips */}
-        <SectionTitle label="Tips" />
-        <Row label="Cash Tips" value={fmt(shift.tipsCash)} accent={Colors.cash} />
-        <Row label="Credit Tips" value={fmt(shift.tipsCredit)} accent={Colors.credit} />
-        <Row label="Total Tips" value={fmt(shift.tipsTotal)} accent={Colors.accent} bold />
+        {/* ── Tips Card ─────────────────────────────────────────────── */}
+        <SectionCard label="Tips">
+          <MoneyRow label="Cash" value={fmt(shift.tipsCash)} accent={Colors.success} />
+          <MoneyRow label="Credit" value={fmt(shift.tipsCredit)} accent={Colors.credit} />
+          <MoneyRow label="Total" value={fmt(shift.tipsTotal)} accent={Colors.accent} bold />
+        </SectionCard>
 
-        {/* Sales */}
-        <SectionTitle label="Sales" />
-        <Row label="Sales Total" value={fmt(shift.sales)} />
-        <Row label="Tip %" value={fmtPct(shift.tipPercent)} accent={Colors.accent} />
-        <Row label="Covers" value={String(shift.covers)} />
-        {shift.covers > 0 && (
-          <Row label="Sales / Cover" value={fmt(shift.salesPerCover)} />
-        )}
+        {/* ── Sales Card ─────────────────────────────────────────────── */}
+        <SectionCard label="Sales">
+          <MoneyRow label="Sales" value={fmt(shift.sales)} />
+          <MoneyRow label="Tip %" value={fmtPct(shift.tipPercent)} accent={shift.tipPercent >= 18 ? Colors.success : Colors.accent} />
+          <MoneyRow label="Covers" value={String(shift.covers)} />
+          {shift.covers > 0 && <MoneyRow label="Per Cover" value={fmt(shift.salesPerCover)} />}
+        </SectionCard>
 
-        {/* Tip-Out Breakdown */}
-        <SectionTitle label="Tip-Out Breakdown" />
-        {(() => {
-          const cats = shift.tipOutByCategory ?? {};
-          const entries = Object.entries(cats).filter(([, v]) => v > 0);
-          if (entries.length === 0) return <Row label="(none)" value="$0.00" />;
-          return entries.map(([key, val]) => {
-            const label = key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1');
-            return <Row key={key} label={label} value={fmt(val)} accent={Colors.error} />;
-          });
-        })()}
-        <Row label="Total Tip Out" value={fmt(shift.tipOut)} accent={Colors.error} bold />
+        {/* ── Tip-Out Card ───────────────────────────────────────────── */}
+        <SectionCard label="Tip-Out (Paid Out)">
+          {tipOutEntries.length === 0
+            ? <Text style={styles.emptyText}>Nothing paid out</Text>
+            : tipOutEntries.map(([key, val]) => {
+                const label = key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1');
+                return <MoneyRow key={key} label={label} value={'−' + fmt(val)} accent={Colors.error} />;
+              })}
+          <MoneyRow label="Total Out" value={'−' + fmt(shift.tipOut)} accent={Colors.error} bold />
+        </SectionCard>
 
-        {/* Tip In */}
-        <SectionTitle label="Tip In" />
-        <Row label="Tip In" value={fmt(shift.tipIn)} accent={Colors.success} />
+        {/* ── Net & Wage Card ───────────────────────────────────────── */}
+        <SectionCard label="Earnings Breakdown">
+          <MoneyRow label="Net Tips" value={fmt(shift.netTips)} accent={Colors.accent} bold />
+          {shift.tipIn > 0 && <MoneyRow label="Tip In" value={'+' + fmt(shift.tipIn)} accent={Colors.success} />}
+          <MoneyRow label="Wage Earned" value={fmt(shift.wage * shift.hours)} />
+          {shift.serviceCharge > 0 && <MoneyRow label="Svc Charge" value={fmt(shift.serviceCharge)} />}
+        </SectionCard>
 
-        {/* Net Tips */}
-        <SectionTitle label="Net Tips" />
-        <Row label="Net Tips" value={fmt(shift.netTips)} accent={Colors.accent} bold />
+        {/* ── Hours Card ─────────────────────────────────────────────── */}
+        <SectionCard label="Hours">
+          <MoneyRow label="Clock In" value={fmt12h(shift.clockIn)} />
+          <MoneyRow label="Clock Out" value={fmt12h(shift.clockOut)} />
+          <MoneyRow label="Total" value={shift.hours.toFixed(2) + 'h'} />
+          <MoneyRow label="Wage" value={fmt(shift.wage) + '/hr'} />
+        </SectionCard>
 
-        {/* Hours & Wage */}
-        <SectionTitle label="Hours & Wage" />
-        <Row label="Clock In" value={fmt12h(shift.clockIn)} />
-        <Row label="Clock Out" value={fmt12h(shift.clockOut)} />
-        <Row label="Total Hours" value={shift.hours.toFixed(2) + 'h'} />
-        <Row label="Hourly Wage" value={fmt(shift.wage) + '/hr'} />
-        <Row label="Wage Earned" value={fmt(shift.wage * shift.hours)} />
-        {shift.serviceCharge > 0 && (
-          <Row label="Service Charge" value={fmt(shift.serviceCharge)} />
-        )}
-        {shift.mileage > 0 && (
-          <Row label="Mileage" value={shift.mileage.toFixed(1) + ' mi'} />
-        )}
-
-        {/* Expenses */}
+        {/* ── Expenses ───────────────────────────────────────────────── */}
         {shift.expenses.length > 0 && (
-          <>
-            <SectionTitle label="Expenses" />
+          <SectionCard label="Expenses">
             {shift.expenses.map((e) => (
-              <Row key={e.id} label={e.category} value={fmt(e.amount)} accent={Colors.error} />
+              <MoneyRow key={e.id} label={e.category} value={'−' + fmt(e.amount)} accent={Colors.error} />
             ))}
-          </>
+          </SectionCard>
         )}
 
-        {/* Notes */}
+        {/* ── Notes ─────────────────────────────────────────────────── */}
         {shift.notes.trim() && (
-          <>
-            <SectionTitle label="Notes" />
+          <View style={styles.notesSection}>
+            <Text style={styles.notesSectionLabel}>Notes</Text>
             <View style={styles.notesCard}>
               <Text style={styles.notesText}>{shift.notes}</Text>
             </View>
-          </>
+          </View>
         )}
 
-        {/* Sync status */}
+        {/* ── Sync Status ───────────────────────────────────────────── */}
         <View style={styles.syncRow}>
           <Ionicons
             name={shift.synced ? 'cloud-done-outline' : 'cloud-upload-outline'}
-            size={14}
+            size={13}
             color={shift.synced ? Colors.success : Colors.textMuted}
           />
-          <Text style={styles.syncText}>
-            {shift.synced ? 'Synced' : 'Pending sync'}
-          </Text>
+          <Text style={styles.syncText}>{shift.synced ? 'Synced to cloud' : 'Pending sync'}</Text>
         </View>
 
         <View style={{ height: Spacing.xxl }} />
@@ -187,20 +184,27 @@ export default function ShiftDetailScreen() {
   );
 }
 
-function HeroStat({ label, value }: { label: string; value: string }) {
+// ─── Components ─────────────────────────────────────────────────────────────
+
+function HeroStat({ label, value, accent }: { label: string; value: string; accent?: string }) {
   return (
-    <View style={{ alignItems: 'center' }}>
-      <Text style={styles.heroStatValue}>{value}</Text>
+    <View style={{ alignItems: 'center', flex: 1 }}>
+      <Text style={[styles.heroStatValue, accent && { color: accent }]}>{value}</Text>
       <Text style={styles.heroStatLabel}>{label}</Text>
     </View>
   );
 }
 
-function SectionTitle({ label }: { label: string }) {
-  return <Text style={styles.sectionTitle}>{label}</Text>;
+function SectionCard({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardLabel}>{label}</Text>
+      {children}
+    </View>
+  );
 }
 
-function Row({
+function MoneyRow({
   label,
   value,
   accent,
@@ -212,17 +216,21 @@ function Row({
   bold?: boolean;
 }) {
   return (
-    <View style={styles.row}>
-      <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={[styles.rowValue, accent && { color: accent }, bold && { fontWeight: '700' }]}>
+    <View style={styles.moneyRow}>
+      <Text style={[styles.moneyRowLabel, bold && { fontWeight: '600' }]}>{label}</Text>
+      <Text style={[styles.moneyRowValue, accent && { color: accent }, bold && { fontWeight: '700' }]}>
         {value}
       </Text>
     </View>
   );
 }
 
+// ─── Styles ────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
+
+  // Hero
   hero: {
     backgroundColor: Colors.card,
     borderWidth: 1,
@@ -231,50 +239,99 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     padding: Spacing.lg,
   },
-  heroHeader: {
+  heroTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: Spacing.md,
   },
-  heroDate: { fontSize: FontSize.md, fontWeight: '600', color: Colors.textPrimary },
+  heroMeta: { flex: 1 },
+  heroDate: { fontSize: FontSize.lg, fontWeight: '600', color: Colors.textPrimary },
   jobRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
-  jobDot: { width: 8, height: 8, borderRadius: Radius.full },
+  jobDot: { width: 7, height: 7, borderRadius: Radius.full },
   jobName: { fontSize: FontSize.sm, color: Colors.textSecondary },
-  heroValue: { fontSize: 44, fontWeight: '600', color: Colors.accentActive, letterSpacing: -1 },
-  heroLabel: { fontSize: FontSize.sm, color: Colors.textMuted, marginBottom: Spacing.md },
-  heroStats: { flexDirection: 'row', justifyContent: 'space-around' },
-  heroStatValue: { fontSize: FontSize.lg, fontWeight: '600', color: Colors.textPrimary },
-  heroStatLabel: { fontSize: FontSize.xs, color: Colors.textSubtle },
-  sectionTitle: {
-    fontSize: FontSize.xs,
+  heroActions: { flexDirection: 'row', gap: Spacing.md },
+  heroEarnings: {
+    fontSize: 52,
     fontWeight: '600',
+    color: Colors.accentActive,
+    letterSpacing: -1.5,
+    lineHeight: 56,
+  },
+  heroEarningsLabel: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: -4, marginBottom: Spacing.md, textTransform: 'uppercase', letterSpacing: 1 },
+  heroStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.md,
+  },
+  heroDivider: { width: 1, height: 28, backgroundColor: Colors.borderSubtle },
+  heroStatValue: { fontSize: FontSize.lg, fontWeight: '600', color: Colors.textPrimary },
+  heroStatLabel: { fontSize: FontSize.xs, color: Colors.textSubtle, marginTop: 2 },
+  heroChip: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(99,102,241,0.15)',
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+    marginTop: Spacing.md,
+  },
+  heroChipText: { fontSize: FontSize.xs, color: Colors.accentActive, fontWeight: '600' },
+
+  // Cards
+  card: {
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
+  },
+  cardLabel: {
+    fontSize: FontSize.xs,
+    fontWeight: '700',
     color: Colors.textMuted,
     textTransform: 'uppercase',
-    letterSpacing: 1,
-    paddingHorizontal: Spacing.md,
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.xs,
+    letterSpacing: 1.2,
+    marginBottom: Spacing.sm,
   },
-  row: {
+
+  // Money row
+  moneyRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm + 4,
+    alignItems: 'center',
+    paddingVertical: 7,
     borderBottomWidth: 1,
     borderBottomColor: Colors.borderSubtle,
   },
-  rowLabel: { fontSize: FontSize.md, color: Colors.textSecondary, fontWeight: '500' },
-  rowValue: { fontSize: FontSize.md, color: Colors.textPrimary, fontWeight: '500' },
+  moneyRowLabel: { fontSize: FontSize.md, color: Colors.textSecondary },
+  moneyRowValue: { fontSize: FontSize.md, color: Colors.textPrimary, fontWeight: '500' },
+
+  emptyText: { fontSize: FontSize.sm, color: Colors.textMuted, fontStyle: 'italic', paddingVertical: 4 },
+
+  // Notes
+  notesSection: { marginHorizontal: Spacing.md, marginTop: Spacing.sm },
+  notesSectionLabel: {
+    fontSize: FontSize.xs,
+    fontWeight: '700',
+    color: Colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+    marginBottom: Spacing.xs,
+  },
   notesCard: {
-    margin: Spacing.md,
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.card,
     borderRadius: Radius.md,
     padding: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.borderSubtle,
   },
   notesText: { fontSize: FontSize.md, color: Colors.textSecondary, lineHeight: 22 },
+
+  // Sync
   syncRow: {
     flexDirection: 'row',
     justifyContent: 'center',

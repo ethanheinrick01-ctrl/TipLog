@@ -18,16 +18,9 @@ import { useAuthStore } from '../../store/authStore';
 import { useShiftStore } from '../../store/shiftStore';
 import { Job } from '../../lib/types';
 import { randomUUID } from 'expo-crypto';
-import {
-  getPayPeriodForDate,
-  DEFAULT_PAY_PERIOD_ANCHOR,
-} from '../../lib/calculations';
-import { format, parseISO, addDays, subDays } from 'date-fns';
-import {
-  requestNotificationPermission,
-  scheduleShiftReminder,
-  cancelShiftReminder,
-} from '../../lib/notifications';
+import { getPayPeriodForDate, DEFAULT_PAY_PERIOD_ANCHOR } from '../../lib/calculations';
+import { format, parseISO } from 'date-fns';
+import { requestNotificationPermission, scheduleShiftReminder, cancelShiftReminder } from '../../lib/notifications';
 import { exportShiftsToCSV } from '../../lib/export';
 import { supabase } from '../../lib/supabase';
 
@@ -35,7 +28,6 @@ const JOB_COLORS = [
   '#F5A623', '#FF6B6B', '#4ECDC4', '#45B7D1',
   '#96CEB4', '#DDA0DD', '#98D8C8', '#F7DC6F',
 ];
-
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 type AdminSignup = {
@@ -69,40 +61,29 @@ export default function SettingsScreen() {
   const [reminderTime, setReminderTime] = useState(user?.reminderTime ?? '23:00');
   const [notifSaving, setNotifSaving] = useState(false);
 
-  // Pay week start (for weekly view)
+  // Pay week
   const [payWeekStart, setPayWeekStart] = useState(user?.payWeekStart ?? 1);
   const [weekSaving, setWeekSaving] = useState(false);
 
   // Pay period anchor
-  const [anchorInput, setAnchorInput] = useState(
-    user?.payPeriodAnchor ?? DEFAULT_PAY_PERIOD_ANCHOR,
-  );
+  const [anchorInput, setAnchorInput] = useState(user?.payPeriodAnchor ?? DEFAULT_PAY_PERIOD_ANCHOR);
   const [anchorSaving, setAnchorSaving] = useState(false);
   const anchorPreview = useMemo(() => {
     try {
       const pp = getPayPeriodForDate(anchorInput, new Date());
-      return `Current period: ${format(pp.start, 'EEE MMM d')} – ${format(pp.end, 'EEE MMM d')}`;
-    } catch {
-      return 'Invalid date';
-    }
+      return `${format(pp.start, 'MMM d')} – ${format(pp.end, 'MMM d, yyyy')}`;
+    } catch { return 'Invalid'; }
   }, [anchorInput]);
 
   // Export
   const [exporting, setExporting] = useState(false);
 
-  // Admin: team signups
+  // Admin
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminSignups, setAdminSignups] = useState<AdminSignup[]>([]);
   const isAdmin = (user?.email ?? '').toLowerCase() === 'ethanheinrick01@gmail.com';
   const adminAutoLoadedRef = useRef(false);
-  const adminTotalShifts = useMemo(
-    () => adminSignups.reduce((sum, u) => sum + (u.shiftsTotal ?? 0), 0),
-    [adminSignups],
-  );
-  const adminTotalCashouts = useMemo(
-    () => adminSignups.reduce((sum, u) => sum + (u.cashoutTotal ?? 0), 0),
-    [adminSignups],
-  );
+  const adminTotalCashouts = useMemo(() => adminSignups.reduce((s, u) => s + (u.cashoutTotal ?? 0), 0), [adminSignups]);
 
   useEffect(() => {
     setReminderEnabled(user?.reminderEnabled ?? false);
@@ -112,49 +93,33 @@ export default function SettingsScreen() {
   }, [user]);
 
   useEffect(() => {
-    if (!isAdmin) {
-      adminAutoLoadedRef.current = false;
-      return;
-    }
-    // Auto-load once per admin session; avoid repeated refresh loops.
-    if (adminAutoLoadedRef.current) return;
+    if (!isAdmin || adminAutoLoadedRef.current) return;
     adminAutoLoadedRef.current = true;
     loadAdminSignups();
   }, [isAdmin]);
 
   async function handleAnchorSave() {
-    // Validate: must be a Thursday
     try {
       const d = parseISO(anchorInput);
       if (isNaN(d.getTime())) throw new Error();
       if (d.getDay() !== 4) {
-        showAlert(
-          'Must be a Thursday',
-          `${format(d, 'EEEE MMM d')} is a ${format(d, 'EEEE')}. Pay periods start on Thursdays — pick the Thursday that started your last pay period.`,
-        );
+        showAlert('Must be a Thursday', `${format(d, 'EEEE MMM d')} isn't a Thursday. Pick the Thursday that started your last pay period.`);
         return;
       }
     } catch {
-      showAlert('Invalid Date', 'Enter a date in YYYY-MM-DD format.');
+      showAlert('Invalid Date', 'Enter a date like 2026-03-26.');
       return;
     }
     setAnchorSaving(true);
     try {
-      if (user) {
-        await supabase.from('users').update({ payPeriodAnchor: anchorInput }).eq('id', user.id);
-      }
-    } finally {
-      setAnchorSaving(false);
-    }
+      if (user) await supabase.from('users').update({ payPeriodAnchor: anchorInput }).eq('id', user.id);
+    } finally { setAnchorSaving(false); }
   }
 
   async function handleReminderToggle(val: boolean) {
     if (val) {
       const granted = await requestNotificationPermission();
-      if (!granted) {
-        showAlert('Permission Required', 'Allow notifications in Settings to enable shift reminders.');
-        return;
-      }
+      if (!granted) { showAlert('Permission Required', 'Allow notifications in Settings to enable reminders.'); return; }
     }
     setReminderEnabled(val);
     await saveReminderPrefs(val, reminderTime);
@@ -163,151 +128,101 @@ export default function SettingsScreen() {
   async function saveReminderPrefs(enabled: boolean, time: string) {
     setNotifSaving(true);
     try {
-      if (enabled) {
-        await scheduleShiftReminder(time);
-      } else {
-        await cancelShiftReminder();
-      }
-      // Persist to Supabase
-      if (user) {
-        await supabase
-          .from('users')
-          .update({ reminderEnabled: enabled, reminderTime: time })
-          .eq('id', user.id);
-      }
-    } catch (e) {
-      console.warn('Reminder save error:', e);
-    } finally {
-      setNotifSaving(false);
-    }
+      if (enabled) await scheduleShiftReminder(time);
+      else await cancelShiftReminder();
+      if (user) await supabase.from('users').update({ reminderEnabled: enabled, reminderTime: time }).eq('id', user.id);
+    } catch (e) { console.warn('Reminder save error:', e); }
+    finally { setNotifSaving(false); }
   }
 
   async function handleTimeChange(time: string) {
     setReminderTime(time);
-    if (reminderEnabled) {
-      await saveReminderPrefs(true, time);
-    }
+    if (reminderEnabled) await saveReminderPrefs(true, time);
   }
 
   async function handlePayWeekChange(day: number) {
     setPayWeekStart(day);
     setWeekSaving(true);
-    try {
-      if (user) {
-        await supabase
-          .from('users')
-          .update({ payWeekStart: day })
-          .eq('id', user.id);
-      }
-    } finally {
-      setWeekSaving(false);
-    }
+    try { if (user) await supabase.from('users').update({ payWeekStart: day }).eq('id', user.id); }
+    finally { setWeekSaving(false); }
   }
 
   function handleAddJob() {
     if (!jobName.trim()) return;
     const job: Job = {
-      id: randomUUID(),
-      name: jobName.trim(),
-      color: jobColor,
-      position: jobPosition.trim() || 'Server',
-      defaultWage: parseFloat(jobWage) || 2.13,
+      id: randomUUID(), name: jobName.trim(), color: jobColor,
+      position: jobPosition.trim() || 'Server', defaultWage: parseFloat(jobWage) || 2.13,
       createdAt: new Date().toISOString(),
     };
     saveJob(job);
-    setJobName('');
-    setJobPosition('Server');
-    setJobWage('2.13');
-    setAddingJob(false);
+    setJobName(''); setJobPosition('Server'); setJobWage('2.13'); setAddingJob(false);
   }
 
   function confirmDeleteJob(job: Job) {
     const count = shifts.filter((s) => s.jobId === job.id).length;
-    const msg = `Remove "${job.name}"? It has ${count} logged shift${count !== 1 ? 's' : ''}.`;
+    const msg = count > 0
+      ? `"${job.name}" has ${count} logged shift${count !== 1 ? 's' : ''}. Delete anyway?`
+      : `Delete "${job.name}"?`;
     showConfirm('Delete Job', msg, () => deleteJob(job.id), 'Delete');
   }
 
   async function handleExport() {
     setExporting(true);
-    try {
-      await exportShiftsToCSV(shifts, jobs);
-    } catch (e: any) {
-      showAlert('Export Failed', e.message ?? 'Unknown error');
-    } finally {
-      setExporting(false);
-    }
+    try { await exportShiftsToCSV(shifts, jobs); }
+    catch (e: any) { showAlert('Export Failed', e.message ?? 'Unknown error'); }
+    finally { setExporting(false); }
   }
 
   async function loadAdminSignups() {
     if (!isAdmin || adminLoading) return;
     setAdminLoading(true);
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        throw new Error('Not signed in');
-      }
-
-      const projectRef = (process.env.EXPO_PUBLIC_SUPABASE_URL || '')
-        .replace('https://', '')
-        .replace('.supabase.co', '');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Not signed in');
+      const projectRef = (process.env.EXPO_PUBLIC_SUPABASE_URL || '').replace('https://', '').replace('.supabase.co', '');
       const endpoint = `https://${projectRef}.supabase.co/functions/v1/admin-signups`;
-
       const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
       const res = await fetch(endpoint, {
         method: 'GET',
-        headers: {
-          // Supabase gateway auth context
-          Authorization: `Bearer ${anonKey}`,
-          apikey: anonKey,
-          // Real signed-in user JWT for the edge function to verify
-          'x-user-token': session.access_token,
-        },
+        headers: { Authorization: `Bearer ${anonKey}`, apikey: anonKey, 'x-user-token': session.access_token },
       });
-
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`HTTP ${res.status}: ${text.slice(0, 160)}`);
-      }
-
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       setAdminSignups((json?.users ?? []) as AdminSignup[]);
-    } catch (e: any) {
-      showAlert('Admin load failed', e?.message ?? 'Could not load signups');
-    } finally {
-      setAdminLoading(false);
-    }
+    } catch (e: any) { showAlert('Admin load failed', e?.message ?? 'Could not load signups'); }
+    finally { setAdminLoading(false); }
   }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>Settings</Text>
+        <Text style={styles.pageTitle}>Settings</Text>
 
-        {/* ── Account ────────────────────────────────── */}
+        {/* ── Account ────────────────────────────────────────────────── */}
         <SectionLabel label="Account" />
         <View style={styles.card}>
-          <Row icon="person-outline" label={user?.name ?? 'Unknown'} />
-          <Sep />
-          <Row icon="mail-outline" label={user?.email ?? ''} />
-          <Sep />
-          <TouchableOpacity onPress={() => user?.id && sync(user.id)} disabled={syncing}>
-            <View style={styles.row}>
-              {syncing
-                ? <ActivityIndicator size="small" color={Colors.accent} style={{ marginRight: Spacing.sm }} />
-                : <Ionicons name="cloud-upload-outline" size={20} color={Colors.accent} style={styles.rowIcon} />}
-              <Text style={[styles.rowLabel, { color: Colors.accent }]}>
-                {syncing ? 'Syncing...' : 'Sync Now'}
-              </Text>
+          <View style={styles.accountRow}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{(user?.name ?? user?.email ?? '?')[0].toUpperCase()}</Text>
             </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.accountName}>{user?.name ?? 'No name set'}</Text>
+              <Text style={styles.accountEmail}>{user?.email ?? ''}</Text>
+            </View>
+          </View>
+          <View style={styles.sep} />
+          <TouchableOpacity style={styles.actionRow} onPress={() => user?.id && sync(user.id)} disabled={syncing}>
+            {syncing
+              ? <ActivityIndicator size="small" color={Colors.accent} />
+              : <Ionicons name="sync-outline" size={18} color={Colors.accent} />}
+            <Text style={[styles.actionText, { color: Colors.accent }]}>{syncing ? 'Syncing...' : 'Sync Now'}</Text>
           </TouchableOpacity>
         </View>
 
-        {/* ── Pay Week ───────────────────────────────── */}
+        {/* ── Pay Week ─────────────────────────────────────────────── */}
         <SectionLabel label="Pay Week Starts On" />
         <View style={styles.card}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ padding: Spacing.sm }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ padding: Spacing.sm }}>
             {DAY_NAMES.map((name, i) => (
               <TouchableOpacity
                 key={i}
@@ -323,47 +238,43 @@ export default function SettingsScreen() {
           {weekSaving && <Text style={styles.saving}>Saving...</Text>}
         </View>
 
-        {/* ── Pay Period Anchor ──────────────────────── */}
+        {/* ── Pay Period ──────────────────────────────────────────── */}
         <SectionLabel label="Pay Period Anchor" />
         <View style={styles.card}>
-          <View style={styles.row}>
-            <Ionicons name="calendar-outline" size={20} color={Colors.textSecondary} style={styles.rowIcon} />
+          <View style={styles.infoRow}>
+            <Ionicons name="calendar-outline" size={18} color={Colors.textMuted} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.rowLabel}>Pay Period Start (Thursday)</Text>
-              <Text style={styles.rowSub}>{anchorPreview}</Text>
+              <Text style={styles.infoLabel}>Current Period</Text>
+              <Text style={styles.infoValue}>{anchorPreview}</Text>
             </View>
           </View>
-          <Sep />
-          <View style={[styles.row, { gap: Spacing.sm }]}>
+          <View style={styles.sep} />
+          <View style={styles.anchorRow}>
             <TextInput
-              style={[styles.timeInput, { flex: 1, width: undefined, textAlign: 'left', paddingHorizontal: Spacing.sm }]}
+              style={styles.anchorInput}
               value={anchorInput}
               onChangeText={setAnchorInput}
               placeholder="YYYY-MM-DD"
               placeholderTextColor={Colors.textMuted}
               keyboardType="numbers-and-punctuation"
             />
-            <TouchableOpacity
-              style={styles.anchorSaveBtn}
-              onPress={handleAnchorSave}
-              disabled={anchorSaving}
-            >
+            <TouchableOpacity style={styles.setBtn} onPress={handleAnchorSave} disabled={anchorSaving}>
               {anchorSaving
                 ? <ActivityIndicator size="small" color={Colors.textPrimary} />
-                : <Text style={styles.anchorSaveBtnText}>Set</Text>}
+                : <Text style={styles.setBtnText}>Set</Text>}
             </TouchableOpacity>
           </View>
-          <Text style={styles.anchorHint}>
-            Enter any Thursday that was the first day of a pay period. The app calculates all other periods from there.
-          </Text>
+          <Text style={styles.hint}>Enter any Thursday — the app calculates all pay periods from there.</Text>
         </View>
 
-        {/* ── Reminders ──────────────────────────────── */}
+        {/* ── Reminders ───────────────────────────────────────────── */}
         <SectionLabel label="Shift Reminders" />
         <View style={styles.card}>
-          <View style={styles.row}>
-            <Ionicons name="notifications-outline" size={20} color={Colors.textSecondary} style={styles.rowIcon} />
-            <Text style={styles.rowLabel}>Daily Reminder</Text>
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.infoLabel}>Daily Reminder</Text>
+              <Text style={styles.hintInline}>Remind me to log a shift each day</Text>
+            </View>
             <Switch
               value={reminderEnabled}
               onValueChange={handleReminderToggle}
@@ -373,10 +284,10 @@ export default function SettingsScreen() {
           </View>
           {reminderEnabled && (
             <>
-              <Sep />
-              <View style={styles.row}>
-                <Ionicons name="time-outline" size={20} color={Colors.textSecondary} style={styles.rowIcon} />
-                <Text style={styles.rowLabel}>Reminder Time</Text>
+              <View style={styles.sep} />
+              <View style={styles.infoRow}>
+                <Ionicons name="time-outline" size={18} color={Colors.textMuted} />
+                <Text style={[styles.infoLabel, { marginLeft: Spacing.sm }]}>Reminder Time</Text>
                 <TextInput
                   style={styles.timeInput}
                   value={reminderTime}
@@ -386,47 +297,24 @@ export default function SettingsScreen() {
                   keyboardType="numbers-and-punctuation"
                 />
               </View>
-              {notifSaving && <Text style={styles.saving}>Saving...</Text>}
+              {notifSaving && <Text style={[styles.saving, { paddingHorizontal: Spacing.md }]}>Saving...</Text>}
             </>
           )}
         </View>
 
-        {/* ── Jobs ───────────────────────────────────── */}
-        <View style={styles.sectionRow}>
+        {/* ── Jobs ────────────────────────────────────────────────── */}
+        <View style={styles.sectionHeadRow}>
           <SectionLabel label="Jobs & Positions" />
-          <TouchableOpacity onPress={() => setAddingJob(!addingJob)} style={{ paddingRight: Spacing.md }}>
-            <Ionicons
-              name={addingJob ? 'close-circle-outline' : 'add-circle-outline'}
-              size={22}
-              color={Colors.accent}
-            />
+          <TouchableOpacity onPress={() => setAddingJob(!addingJob)} hitSlop={8}>
+            <Ionicons name={addingJob ? 'close-circle' : 'add-circle'} size={22} color={Colors.accent} />
           </TouchableOpacity>
         </View>
 
         {addingJob && (
           <View style={styles.addJobCard}>
-            <TextInput
-              style={styles.input}
-              placeholder="Restaurant name"
-              placeholderTextColor={Colors.textMuted}
-              value={jobName}
-              onChangeText={setJobName}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Position (Server, Bartender...)"
-              placeholderTextColor={Colors.textMuted}
-              value={jobPosition}
-              onChangeText={setJobPosition}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Hourly wage (e.g. 2.13)"
-              placeholderTextColor={Colors.textMuted}
-              keyboardType="decimal-pad"
-              value={jobWage}
-              onChangeText={setJobWage}
-            />
+            <TextInput style={styles.input} placeholder="Restaurant name" placeholderTextColor={Colors.textMuted} value={jobName} onChangeText={setJobName} />
+            <TextInput style={styles.input} placeholder="Position (Server, Bartender...)" placeholderTextColor={Colors.textMuted} value={jobPosition} onChangeText={setJobPosition} />
+            <TextInput style={styles.input} placeholder="Hourly wage (e.g. 2.13)" placeholderTextColor={Colors.textMuted} keyboardType="decimal-pad" value={jobWage} onChangeText={setJobWage} />
             <Text style={styles.colorLabel}>Color</Text>
             <View style={styles.colorRow}>
               {JOB_COLORS.map((c) => (
@@ -444,93 +332,85 @@ export default function SettingsScreen() {
         )}
 
         {jobs.length === 0 && !addingJob && (
-          <View style={[styles.card, { padding: Spacing.lg, alignItems: 'center' }]}>
-            <Text style={{ color: Colors.textMuted }}>No jobs yet. Tap + to add one.</Text>
+          <View style={[styles.card, { padding: Spacing.xl, alignItems: 'center' }]}>
+            <Text style={{ color: Colors.textMuted }}>No jobs yet — tap + to add one.</Text>
           </View>
         )}
 
         {jobs.map((job) => (
           <View key={job.id} style={styles.jobRow}>
-            <View style={[styles.jobColorBar, { backgroundColor: job.color }]} />
+            <View style={[styles.jobBar, { backgroundColor: job.color }]} />
             <View style={{ flex: 1 }}>
               <Text style={styles.jobName}>{job.name}</Text>
               <Text style={styles.jobSub}>{job.position} · ${job.defaultWage.toFixed(2)}/hr</Text>
             </View>
-            <TouchableOpacity onPress={() => confirmDeleteJob(job)}>
-              <Ionicons name="trash-outline" size={18} color={Colors.textMuted} />
+            <TouchableOpacity onPress={() => confirmDeleteJob(job)} hitSlop={8}>
+              <Ionicons name="trash-outline" size={17} color={Colors.textMuted} />
             </TouchableOpacity>
           </View>
         ))}
 
-        {/* ── Admin ──────────────────────────────────── */}
+        {/* ── Admin ───────────────────────────────────────────────── */}
         {isAdmin && (
           <>
-            <SectionLabel label="Admin" />
+            <SectionLabel label="Team" />
             <View style={styles.card}>
-              <TouchableOpacity onPress={loadAdminSignups} disabled={adminLoading}>
-                <View style={styles.row}>
-                  {adminLoading
-                    ? <ActivityIndicator size="small" color={Colors.accent} style={{ marginRight: Spacing.sm }} />
-                    : <Ionicons name="people-outline" size={20} color={Colors.accent} style={styles.rowIcon} />}
-                  <Text style={[styles.rowLabel, { color: Colors.accent }]}>Refresh Team Signups</Text>
-                  <Text style={styles.adminCount}>{adminSignups.length} users · {adminTotalCashouts} cashouts</Text>
-                </View>
+              <TouchableOpacity style={styles.actionRow} onPress={loadAdminSignups} disabled={adminLoading}>
+                {adminLoading
+                  ? <ActivityIndicator size="small" color={Colors.accent} />
+                  : <Ionicons name="people-outline" size={18} color={Colors.accent} />}
+                <Text style={[styles.actionText, { color: Colors.accent }]}>
+                  {adminLoading ? 'Loading...' : `Refresh Team (${adminSignups.length} members · ${adminTotalCashouts} cashouts)`}
+                </Text>
               </TouchableOpacity>
-              {adminSignups.map((u) => (
-                <View key={u.id}>
-                  <Sep />
-                  <View style={styles.adminUserRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.adminUserEmail}>{u.email}</Text>
-                      <Text style={styles.adminUserMeta}>
-                        {(u.name?.trim() || 'No profile name')} · Joined {new Date(u.createdAt).toLocaleDateString()} · {u.confirmed ? 'Confirmed' : 'Unconfirmed'}
-                      </Text>
-                      <Text style={styles.adminUserMeta}>
-                        Cashouts: {u.cashoutLast7d} / 7d · {u.cashoutLast30d} / 30d · Total {u.cashoutTotal}
-                      </Text>
-                      <Text style={styles.adminUserMeta}>
-                        Shifts (all): {u.shiftsLast7d} / 7d · {u.shiftsLast30d} / 30d · Total {u.shiftsTotal}
-                        {u.lastActivity ? ` · Last ${new Date(u.lastActivity).toLocaleString()}` : ''}
-                      </Text>
-                    </View>
+            </View>
+
+            {adminSignups.map((u) => (
+              <View key={u.id} style={styles.adminCard}>
+                <View style={styles.adminHeader}>
+                  <Text style={styles.adminEmail}>{u.email}</Text>
+                  <View style={[styles.badge, u.confirmed ? styles.badgeConfirmed : styles.badgeUnconfirmed]}>
+                    <Text style={styles.badgeText}>{u.confirmed ? 'Confirmed' : 'Pending'}</Text>
                   </View>
                 </View>
-              ))}
-            </View>
+                {u.name?.trim() && <Text style={styles.adminName}>{u.name}</Text>}
+                <Text style={styles.adminMeta}>
+                  Joined {new Date(u.createdAt).toLocaleDateString()} · {u.shiftsTotal} total shifts · {u.cashoutTotal} cashouts
+                </Text>
+                <Text style={styles.adminMeta}>
+                  Recent: {u.shiftsLast7d} shifts / {u.cashoutLast7d} cashouts in last 7 days
+                </Text>
+                {u.lastActivity && (
+                  <Text style={styles.adminMeta}>Last active {new Date(u.lastActivity).toLocaleString()}</Text>
+                )}
+              </View>
+            ))}
           </>
         )}
 
-        {/* ── Data ───────────────────────────────────── */}
+        {/* ── Data ────────────────────────────────────────────────── */}
         <SectionLabel label="Data" />
         <View style={styles.card}>
-          <TouchableOpacity onPress={handleExport} disabled={exporting}>
-            <View style={styles.row}>
-              {exporting
-                ? <ActivityIndicator size="small" color={Colors.accent} style={{ marginRight: Spacing.sm }} />
-                : <Ionicons name="download-outline" size={20} color={Colors.accent} style={styles.rowIcon} />}
-              <Text style={[styles.rowLabel, { color: Colors.accent }]}>
-                {exporting ? 'Exporting...' : `Export CSV (${shifts.length} shifts)`}
-              </Text>
-            </View>
+          <TouchableOpacity style={styles.actionRow} onPress={handleExport} disabled={exporting}>
+            {exporting
+              ? <ActivityIndicator size="small" color={Colors.accent} />
+              : <Ionicons name="download-outline" size={18} color={Colors.accent} />}
+            <Text style={[styles.actionText, { color: Colors.accent }]}>
+              {exporting ? 'Exporting...' : `Export ${shifts.length} Shifts to CSV`}
+            </Text>
           </TouchableOpacity>
         </View>
 
-        {/* ── Danger ─────────────────────────────────── */}
-        <SectionLabel label="Danger Zone" />
+        {/* ── Sign Out ───────────────────────────────────────────── */}
+        <SectionLabel label="Account" />
         <View style={styles.card}>
-          <TouchableOpacity
-            onPress={() => {
-              showConfirm('Sign Out', 'Are you sure?', signOut, 'Sign Out');
-            }}
-          >
-            <View style={styles.row}>
-              <Ionicons name="log-out-outline" size={20} color={Colors.error} style={styles.rowIcon} />
-              <Text style={[styles.rowLabel, { color: Colors.error }]}>Sign Out</Text>
-            </View>
+          <TouchableOpacity style={styles.actionRow} onPress={() => showConfirm('Sign Out', 'Are you sure?', signOut, 'Sign Out')}>
+            <Ionicons name="log-out-outline" size={18} color={Colors.error} />
+            <Text style={[styles.actionText, { color: Colors.error }]}>Sign Out</Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.version}>Gratuitize Me v1.0 · Mike Anderson's Seafood · Baton Rouge</Text>
+        <Text style={styles.version}>Gratuitize Me · Mike Anderson's Seafood · Baton Rouge</Text>
         <View style={{ height: Spacing.xxl }} />
       </ScrollView>
     </SafeAreaView>
@@ -541,176 +421,120 @@ function SectionLabel({ label }: { label: string }) {
   return <Text style={styles.sectionLabel}>{label}</Text>;
 }
 
-function Row({ icon, label }: { icon: any; label: string }) {
-  return (
-    <View style={styles.row}>
-      <Ionicons name={icon} size={20} color={Colors.textSecondary} style={styles.rowIcon} />
-      <Text style={styles.rowLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function Sep() {
-  return <View style={styles.separator} />;
-}
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  title: {
-    fontSize: FontSize.xxl,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.sm,
-    marginBottom: Spacing.sm,
+  pageTitle: {
+    fontSize: FontSize.xxl, fontWeight: '600', color: Colors.textPrimary,
+    paddingHorizontal: Spacing.md, paddingTop: Spacing.sm, marginBottom: Spacing.xs,
   },
+
   sectionLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: '600',
-    color: Colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    paddingHorizontal: Spacing.md,
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.xs,
+    fontSize: FontSize.xs, fontWeight: '700', color: Colors.textMuted,
+    textTransform: 'uppercase', letterSpacing: 1.2,
+    paddingHorizontal: Spacing.md, marginTop: Spacing.lg, marginBottom: Spacing.xs,
   },
-  sectionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.xs,
+  sectionHeadRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    marginTop: Spacing.lg, marginBottom: Spacing.xs, paddingRight: Spacing.md,
   },
+
   card: {
-    marginHorizontal: Spacing.md,
-    backgroundColor: Colors.card,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    overflow: 'hidden',
+    marginHorizontal: Spacing.md, backgroundColor: Colors.card,
+    borderRadius: Radius.lg, borderWidth: 1, borderColor: Colors.border, overflow: 'hidden',
   },
-  row: { flexDirection: 'row', alignItems: 'center', padding: Spacing.md },
-  rowIcon: { marginRight: Spacing.sm, color: Colors.textMuted },
-  rowLabel: { flex: 1, fontSize: FontSize.md, fontWeight: '500', color: Colors.textPrimary },
-  separator: { height: 1, backgroundColor: Colors.borderSubtle, marginLeft: Spacing.md + 28 },
-  timeInput: {
-    backgroundColor: 'rgba(255,255,255,0.02)',
-    borderRadius: Radius.sm,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    color: Colors.textPrimary,
-    fontSize: FontSize.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    width: 70,
-    textAlign: 'center',
+  cardPadded: { marginHorizontal: Spacing.md, backgroundColor: Colors.card, borderRadius: Radius.lg, borderWidth: 1, borderColor: Colors.border, padding: Spacing.md },
+
+  // Account
+  accountRow: { flexDirection: 'row', alignItems: 'center', padding: Spacing.md, gap: Spacing.md },
+  avatar: {
+    width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.accent,
+    alignItems: 'center', justifyContent: 'center',
   },
+  avatarText: { fontSize: 18, fontWeight: '700', color: Colors.textPrimary },
+  accountName: { fontSize: FontSize.md, fontWeight: '600', color: Colors.textPrimary },
+  accountEmail: { fontSize: FontSize.sm, color: Colors.textMuted, marginTop: 1 },
+
+  // Rows
+  actionRow: { flexDirection: 'row', alignItems: 'center', padding: Spacing.md, gap: Spacing.sm },
+  actionText: { fontSize: FontSize.md, fontWeight: '500' },
+  infoRow: { flexDirection: 'row', alignItems: 'center', padding: Spacing.md, gap: Spacing.sm },
+  infoLabel: { fontSize: FontSize.md, fontWeight: '500', color: Colors.textPrimary },
+  infoValue: { fontSize: FontSize.sm, color: Colors.accent, marginTop: 2 },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', padding: Spacing.md, gap: Spacing.sm },
+  sep: { height: 1, backgroundColor: Colors.borderSubtle, marginLeft: Spacing.md },
+
+  // Pay anchor
+  anchorRow: { flexDirection: 'row', alignItems: 'center', padding: Spacing.md, gap: Spacing.sm },
+  anchorInput: {
+    flex: 1, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.sm, paddingVertical: Spacing.sm,
+    color: Colors.textPrimary, fontSize: FontSize.md, borderWidth: 1, borderColor: Colors.border,
+  },
+  setBtn: {
+    backgroundColor: Colors.accent, borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, alignItems: 'center', minWidth: 52,
+  },
+  setBtnText: { color: Colors.textPrimary, fontWeight: '600', fontSize: FontSize.sm },
+  hint: { fontSize: FontSize.xs, color: Colors.textMuted, paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm, lineHeight: 16 },
+  hintInline: { fontSize: FontSize.xs, color: Colors.textMuted },
   saving: { fontSize: FontSize.xs, color: Colors.textMuted, paddingHorizontal: Spacing.md, paddingBottom: Spacing.xs },
+  timeInput: {
+    marginLeft: 'auto', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs, color: Colors.textPrimary,
+    fontSize: FontSize.md, borderWidth: 1, borderColor: Colors.border, width: 72, textAlign: 'center',
+  },
+
+  // Day chips
   dayChip: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs + 2,
-    borderRadius: Radius.full,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    marginRight: Spacing.xs,
-    borderWidth: 1,
-    borderColor: Colors.borderSubtle,
+    paddingHorizontal: Spacing.sm + 2, paddingVertical: Spacing.xs + 1,
+    borderRadius: Radius.full, backgroundColor: 'rgba(255,255,255,0.04)',
+    marginRight: Spacing.xs, borderWidth: 1, borderColor: Colors.borderSubtle,
   },
   dayChipActive: { backgroundColor: Colors.accent, borderColor: Colors.accent },
   dayChipText: { fontSize: FontSize.sm, color: Colors.textSecondary, fontWeight: '500' },
-  dayChipTextActive: { color: Colors.textPrimary, fontWeight: '600' },
+  dayChipTextActive: { color: Colors.textPrimary, fontWeight: '700' },
+
+  // Jobs
   addJobCard: {
-    marginHorizontal: Spacing.md,
-    backgroundColor: Colors.card,
-    borderRadius: Radius.lg,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    marginHorizontal: Spacing.md, backgroundColor: Colors.card,
+    borderRadius: Radius.lg, padding: Spacing.md, marginBottom: Spacing.sm, borderWidth: 1, borderColor: Colors.border,
   },
   input: {
-    backgroundColor: 'rgba(255,255,255,0.02)',
-    borderRadius: Radius.sm,
-    padding: Spacing.md,
-    color: Colors.textPrimary,
-    fontSize: FontSize.md,
-    marginBottom: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: Radius.sm,
+    padding: Spacing.md, color: Colors.textPrimary, fontSize: FontSize.md,
+    marginBottom: Spacing.sm, borderWidth: 1, borderColor: Colors.border,
   },
   colorLabel: { fontSize: FontSize.xs, color: Colors.textMuted, marginBottom: Spacing.xs, textTransform: 'uppercase', letterSpacing: 1 },
   colorRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md, flexWrap: 'wrap' },
-  colorDot: { width: 28, height: 28, borderRadius: Radius.full },
-  colorDotSelected: { borderWidth: 2, borderColor: Colors.textPrimary },
-  saveBtn: {
-    backgroundColor: Colors.accent,
-    borderRadius: Radius.sm,
-    padding: Spacing.md,
-    alignItems: 'center',
-  },
-  saveBtnText: { color: Colors.textPrimary, fontWeight: '600', fontSize: FontSize.md },
+  colorDot: { width: 26, height: 26, borderRadius: 13 },
+  colorDotSelected: { borderWidth: 2.5, borderColor: Colors.textPrimary },
+  saveBtn: { backgroundColor: Colors.accent, borderRadius: Radius.sm, padding: Spacing.md, alignItems: 'center' },
+  saveBtnText: { color: Colors.textPrimary, fontWeight: '700', fontSize: FontSize.md },
   jobRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.card,
-    marginHorizontal: Spacing.md,
-    marginBottom: Spacing.xs,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    gap: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.borderSubtle,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.card,
+    marginHorizontal: Spacing.md, marginBottom: Spacing.xs, borderRadius: Radius.md,
+    padding: Spacing.md, gap: Spacing.sm, borderWidth: 1, borderColor: Colors.borderSubtle,
   },
-  jobColorBar: { width: 3, height: 32, borderRadius: 2 },
+  jobBar: { width: 3, height: 36, borderRadius: 2 },
   jobName: { fontSize: FontSize.md, fontWeight: '600', color: Colors.textPrimary },
   jobSub: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: 2 },
-  rowSub: {
-    fontSize: FontSize.xs,
-    color: Colors.textMuted,
-    marginTop: 2,
+
+  // Admin
+  adminCard: {
+    marginHorizontal: Spacing.md, backgroundColor: Colors.card,
+    borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.xs,
+    borderWidth: 1, borderColor: Colors.borderSubtle,
   },
-  adminCount: {
-    color: Colors.textSecondary,
-    fontSize: FontSize.sm,
-    fontWeight: '700',
-  },
-  adminUserRow: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-  },
-  adminUserEmail: {
-    color: Colors.textPrimary,
-    fontSize: FontSize.sm,
-    fontWeight: '600',
-  },
-  adminUserMeta: {
-    color: Colors.textMuted,
-    fontSize: FontSize.xs,
-    marginTop: 2,
-  },
-  anchorSaveBtn: {
-    backgroundColor: Colors.accent,
-    borderRadius: Radius.sm,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    minWidth: 48,
-    alignItems: 'center',
-  },
-  anchorSaveBtnText: {
-    color: Colors.textPrimary,
-    fontWeight: '600',
-    fontSize: FontSize.sm,
-  },
-  anchorHint: {
-    fontSize: FontSize.xs,
-    color: Colors.textMuted,
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.sm,
-    lineHeight: 18,
-  },
+  adminHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.sm },
+  adminEmail: { fontSize: FontSize.md, fontWeight: '600', color: Colors.textPrimary, flex: 1 },
+  adminName: { fontSize: FontSize.sm, color: Colors.textSecondary, marginTop: 2 },
+  adminMeta: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: 3, lineHeight: 16 },
+  badge: { borderRadius: Radius.full, paddingHorizontal: Spacing.sm, paddingVertical: 2 },
+  badgeConfirmed: { backgroundColor: 'rgba(16,185,129,0.15)' },
+  badgeUnconfirmed: { backgroundColor: 'rgba(251,191,36,0.15)' },
+  badgeText: { fontSize: FontSize.xs, fontWeight: '600', color: Colors.textSecondary },
+
   version: {
-    textAlign: 'center',
-    color: Colors.textMuted,
-    fontSize: FontSize.xs,
-    marginTop: Spacing.lg,
+    textAlign: 'center', color: Colors.textMuted, fontSize: FontSize.xs, marginTop: Spacing.xl,
   },
 });
