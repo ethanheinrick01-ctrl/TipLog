@@ -386,6 +386,7 @@ export default function ImportShiftScreen() {
       tipOutByCategory.bar = barMinimum;
     }
 
+    const wage = existingShift?.wage ?? 2.13;
     const computed = computeShift({
       tipsCash: cashTips,
       tipsCredit: r.tipsCredit ?? existingShift?.tipsCredit ?? 0,
@@ -395,6 +396,7 @@ export default function ImportShiftScreen() {
       tipOutByCategory,
       clockIn,
       clockOut,
+      wage,
     });
 
     return {
@@ -410,7 +412,7 @@ export default function ImportShiftScreen() {
       covers: r.covers ?? existingShift?.covers ?? 0,
       tipOutByCategory,
       tipIn: existingShift?.tipIn ?? 0,
-      wage: existingShift?.wage ?? 2.13,
+      wage,
       serviceCharge: existingShift?.serviceCharge ?? 0,
       mileage: existingShift?.mileage ?? 0,
       notes: existingShift?.notes ?? '',
@@ -421,6 +423,7 @@ export default function ImportShiftScreen() {
 
   function buildScheduleShift(p: ParsedShift) {
     // Keep parsed clock-out from schedule import so AM/PM blocks are saved accurately.
+    const wage = 2.13;
     const computed = computeShift({
       tipsCash: 0,
       tipsCredit: 0,
@@ -429,6 +432,7 @@ export default function ImportShiftScreen() {
       tipOutByCategory: {},
       clockIn: p.clockIn,
       clockOut: p.clockOut,
+      wage,
     });
     return {
       date: p.date,
@@ -441,7 +445,7 @@ export default function ImportShiftScreen() {
       covers: 0,
       tipOutByCategory: {},
       tipIn: 0,
-      wage: 2.13,
+      wage,
       serviceCharge: 0,
       mileage: 0,
       notes: `Imported from HotSchedules — ${p.position}`,

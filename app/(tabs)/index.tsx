@@ -113,10 +113,35 @@ export default function CalendarScreen() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [dayModal, setDayModal] = useState<{ date: string; dayShifts: Shift[] } | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [goalModalVisible, setGoalModalVisible] = useState(false);
+  const [goalAmount, setGoalAmount] = useState('');
 
   const monthName = format(currentMonth, 'MMMM');
   const year = format(currentMonth, 'yyyy');
   const todayStr = format(new Date(), 'yyyy-MM-dd');
+
+  // Save monthly earnings goal
+  const handleSaveGoal = () => {
+    const amount = parseFloat(goalAmount);
+    if (isNaN(amount) || amount <= 0) return;
+    const existing = goals.find(
+      (g) => g.period === 'monthly' && g.field === 'grossEarnings',
+    );
+    if (existing) {
+      saveGoal({ ...existing, target: amount });
+    } else {
+      saveGoal({
+        id: `${user?.id}-monthly-grossEarnings`,
+        userId: user?.id ?? '',
+        label: `Monthly Earnings — ${monthName} ${year}`,
+        field: 'grossEarnings',
+        period: 'monthly',
+        target: amount,
+        createdAt: new Date().toISOString(),
+      });
+    }
+    setGoalModalVisible(false);
+  };
 
   const monthShifts = useMemo(
     () => shifts.filter((s) => isSameMonth(parseISO(s.date), currentMonth)),
@@ -522,7 +547,13 @@ export default function CalendarScreen() {
           <View style={styles.actionRow}>
             <TouchableOpacity
               style={styles.goalsBtn}
-              onPress={() => router.push('/(tabs)/goals')}
+              onPress={() => {
+                const existing = goals.find(
+                  (g) => g.period === 'monthly' && g.field === 'grossEarnings',
+                );
+                setGoalAmount(existing ? String(existing.target) : '');
+                setGoalModalVisible(true);
+              }}
             >
               <View style={styles.goalsIconContainer}>
                 <Ionicons name="trophy-outline" size={20} color={Colors.textPrimary} />
