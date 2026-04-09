@@ -290,10 +290,10 @@ export default function AnalyticsScreen() {
               <>
                 <Text style={styles.sectionTitle}>Previous Period  ·  {prevPP.label}</Text>
                 <View style={styles.prevCard}>
-                  <PrevStat label="Prev Earnings" curr={summary.grossEarnings} prev={prevSummary.grossEarnings} isCurrency />
-                  <PrevStat label="Prev Tips" curr={summary.tipsTotal} prev={prevSummary.tipsTotal} isCurrency />
-                  <PrevStat label="Prev Shifts" curr={summary.shifts} prev={prevSummary.shifts} />
-                  <PrevStat label="Prev Tip %" curr={summary.tipPercent} prev={prevSummary.tipPercent} />
+                  <PrevStat label="Prev Earnings" prev={prevSummary.grossEarnings} isCurrency />
+                  <PrevStat label="Prev Tips" prev={prevSummary.tipsTotal} isCurrency />
+                  <PrevStat label="Prev Shifts" prev={prevSummary.shifts} />
+                  <PrevStat label="Prev Tip %" prev={prevSummary.tipPercent} />
                 </View>
               </>
             )}
@@ -375,29 +375,17 @@ export default function AnalyticsScreen() {
 
 function PrevStat({
   label,
-  curr,
   prev,
   isCurrency,
 }: {
   label: string;
-  curr: number;
   prev: number;
   isCurrency?: boolean;
 }) {
-  const diff = curr - prev;
-  const up = diff >= 0;
-  // Show +$X for gains (green), $X for losses (red) — the color IS the signal
-  const diffLabel = isCurrency
-    ? (up ? '+' : '') + fmt(Math.abs(diff))
-    : (up ? '+' : '') + Math.abs(diff).toFixed(1);
-
   return (
     <View style={styles.prevStat}>
       <Text style={styles.prevLabel}>{label}</Text>
       <Text style={[styles.prevPrev, isCurrency && { color: Colors.success }]}>{isCurrency ? fmt(prev) : prev.toFixed(1)}</Text>
-      <Text style={[styles.prevDiff, { color: up ? Colors.success : Colors.error }]}>
-        {diffLabel}
-      </Text>
     </View>
   );
 }
